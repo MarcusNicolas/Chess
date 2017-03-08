@@ -74,6 +74,12 @@ enum Rank {
 	Rank8
 };
 
+enum GameIssue {
+	WhiteWin = 0,
+	BlackWin = 1,
+	Draw = 2
+};
+
 
 u8 popCount(u64);
 u64 circularShift(u64, u8);

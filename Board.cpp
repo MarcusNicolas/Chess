@@ -16,7 +16,8 @@ Board::Board() :
 	mActiveColor(White),
 	mHalfmoveClock(0),
 	mEnPassantSquare(-1),
-	mCastlingRights(WhiteKingCastle | WhiteQueenCastle | BlackKingCastle | BlackQueenCastle)
+	mCastlingRights(WhiteKingCastle | WhiteQueenCastle | BlackKingCastle | BlackQueenCastle),
+	mIsGameFinished(false)
 {
 	// Init bitboards
 
@@ -92,6 +93,11 @@ u64 Board::pieces(Color color, PieceType pieceType) const
 const std::list<Move>& Board::possibleMoves() const
 {
 	return mMoves.top();
+}
+
+bool Board::isGameFinished() const
+{
+	return mIsGameFinished;
 }
 
 bool Board::isInCheck(Color color) const
@@ -202,6 +208,7 @@ void Board::_unmakeMove()
 {
 	Undo undo(mHistory.top());
 
+	mIsGameFinished = false;
 	mActiveColor = mOtherColor[mActiveColor];
 	mHalfmoveClock = undo.halfmoveClock;
 	mEnPassantSquare = undo.enPassantSquare;
@@ -293,6 +300,17 @@ void Board::_generateMoves()
 
 	if (_canCastleQueenSide(mActiveColor))
 		mMoves.top().push_back(Move(mCastleDelta[mActiveColor] + 4, mCastleDelta[mActiveColor] + 2, QueenCastle));
+
+
+	// If no moves are available, then game is finished
+	if (!mMoves.size()) {
+		mIsGameFinished = true;
+
+		if (isInCheck(mActiveColor))
+			mGameIssue = static_cast<GameIssue>(1 - mActiveColor); // Checkmate
+		else
+			mGameIssue = Draw; // Stalemate
+	}
 }
 
 void Board::_addPawnMoves(Color color)

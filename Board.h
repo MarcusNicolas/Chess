@@ -33,6 +33,7 @@ public:
 
 	const std::list<Move>& possibleMoves() const;
 
+	bool isGameFinished() const;
 	bool isInCheck(Color) const;
 
 	void makeMove(const Move&);
@@ -94,6 +95,9 @@ private:
 	u8 mHalfmoveClock;
 	u8 mEnPassantSquare;
 	u8 mCastlingRights;
+
+	bool mIsGameFinished;
+	GameIssue mGameIssue;
 
 	std::stack<std::list<Move>> mMoves;
 	std::stack<Undo> mHistory;

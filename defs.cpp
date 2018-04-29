@@ -1,13 +1,14 @@
 #include "defs.h"
 
-u8 popCount(u64 x)
+u8 popcount(u64 x)
 {
 	return __popcnt64(x);
 }
 
 u64 circularShift(u64 x, u8 shift)
 {
-	return x << shift | x >> (64 - shift);
+	u8 r(shift % 64);
+	return x << r | x >> (64 - r);
 }
 
 u8 bsfReset(u64& x)
@@ -18,4 +19,9 @@ u8 bsfReset(u64& x)
 	x &= x - 1;
 
 	return out;
+}
+
+Player otherPlayer(Player player)
+{
+	return Player(1 - player);
 }

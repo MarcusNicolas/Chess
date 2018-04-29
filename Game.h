@@ -1,5 +1,5 @@
-#ifndef BOARD_H
-#define BOARD_H
+#ifndef GAME_H
+#define GAME_H
 
 #include <stack>
 #include <iostream>
@@ -21,29 +21,30 @@ struct Undo
 	u8 castlePerm;
 };
 
-class Board
+class Game
 {
 public:
-	Board();
+	Game();
 
 	u64 occupancy() const;
 
-	u64 player(Color) const;
-	u64 pieces(Color, PieceType) const;
+	u64 player(Player) const;
+	u64 pieces(PieceType) const;
+	u64 piecesOf(Player, PieceType) const;
+	u8 pieceType(u8) const;
 
 	const std::list<Move>& possibleMoves() const;
 
-	bool isGameFinished() const;
-	bool isInCheck(Color) const;
+	Status status() const;
+
+	bool isOver() const;
+	bool isKingInCheck(Player) const;
 
 	void makeMove(const Move&);
 	void unmakeMove();
 
 private:
-	static std::array<Color, 2> mOtherColor;
-
-	static std::array<u8, 2> mPawnShift;
-	static std::array<i8, 2> mPawnDelta;
+	static std::array<i8, 2> mPawnShift;
 	static std::array<u64, 2> mDoublePushMask;
 	static std::array<u64, 2> mPromotionMask;
 
@@ -56,51 +57,53 @@ private:
 	void _makeMove(const Move&);
 	void _unmakeMove();
 
-	void _movePiece(u8, u8, Color);
-	void _addPiece(u8, PieceType, Color);
-	void _removePiece(u8, PieceType, Color);
+	void _movePiece(u8, u8, Player);
+	void _addPiece(u8, PieceType, Player);
+	void _removePiece(u8, PieceType, Player);
 
-	void _refreshKingSquare(Color);
+	void _refreshKingSquare(Player);
 
 	void _generateMoves();
 
 
-	void _addPawnMoves(Color);
-	void _addKnightMoves(Color);
-	void _addBishopMoves(Color);
-	void _addRookMoves(Color);
-	void _addQueenMoves(Color);
-	void _addKingMoves(Color);
+	void _addPawnMoves(Player);
+	void _addKnightMoves(Player);
+	void _addBishopMoves(Player);
+	void _addRookMoves(Player);
+	void _addQueenMoves(Player);
+	void _addKingMoves(Player);
 
 	void _addMovesFrom(u8, u64, MoveType);
-	void _addMovesDelta(i8, u64, MoveType);
-	void _addPromoDelta(i8, u64);
-	void _addPromoCaptureDelta(i8, u64);
+	void _addMovesShift(i8, u64, MoveType);
+	void _addPromoShift(i8, u64);
+	void _addPromoCaptureShift(i8, u64);
 
-	bool _isPinned(u8, Color) const;
+	bool _isAttacked(u8, Player) const;
 
-	bool _canCastleKingSide(Color) const;
-	bool _canCastleQueenSide(Color) const;
+	bool _canCastleKingSide(Player) const;
+	bool _canCastleQueenSide(Player) const;
 
 
 	u64 mOccupancy;
 	std::array<u64, 2> mPlayers;
-	std::array<std::array<u64, 6>, 2> mPieces;
+	std::array<u64, 6> mPieces;
 
 	std::array<u8, 2> mKings;
 
 	std::array<u8, 64> mPieceTypes;
 
-	Color mActiveColor;
+	Player mActivePlayer;
 	u8 mHalfmoveClock;
 	u8 mEnPassantSquare;
 	u8 mCastlingRights;
 
-	bool mIsGameFinished;
-	GameIssue mGameIssue;
+	Status mStatus;
 
 	std::stack<std::list<Move>> mMoves;
 	std::stack<Undo> mHistory;
 };
 
-#endif // BOARD_H
+
+void perft(Game*, u64&, int);
+
+#endif // GAME_H

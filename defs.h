@@ -14,7 +14,7 @@ typedef unsigned long u32;
 typedef unsigned long long u64;
 
 
-enum Color {
+enum Player {
 	White,
 	Black
 };
@@ -74,16 +74,19 @@ enum Rank {
 	Rank8
 };
 
-enum GameIssue {
-	WhiteWin = 0,
-	BlackWin = 1,
-	Draw = 2
+enum Status {
+	Ongoing = -1,
+	WhiteWin,
+	BlackWin,
+	Draw
 };
 
 
-u8 popCount(u64);
+u8 popcount(u64);
 u64 circularShift(u64, u8);
 
 u8 bsfReset(u64&);
+
+Player otherPlayer(Player);
 
 #endif // DEFS_H

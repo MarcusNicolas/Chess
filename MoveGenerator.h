@@ -5,6 +5,8 @@
 #include <vector>
 #include <list>
 #include <map>
+#include <exception>
+#include <iostream>
 
 #include <random>
 #include <chrono>
@@ -32,9 +34,8 @@ public:
 
 private:
 	MoveGenerator();
-	~MoveGenerator();
 
-	std::vector<u64> _permutations(u64);
+	std::vector<u64> _subMasks(u64);
 	void _generateMagics(u8, PieceType);
 
 	u64 _generateRookMoves(u8, u64);

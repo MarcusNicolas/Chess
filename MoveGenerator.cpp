@@ -47,12 +47,12 @@ u64 MoveGenerator::kingMoves(u8 square) const
 
 u64 MoveGenerator::rookMoves(u8 square, u64 occupancy) const
 {
-	return mRookMoves[square][((occupancy & mRookBlockmasks[square]) * mRookMagics[square]) >> (64 - popCount(mRookBlockmasks[square]))];
+	return mRookMoves[square][((occupancy & mRookBlockmasks[square]) * mRookMagics[square]) >> (64 - popcount(mRookBlockmasks[square]))];
 }
 
 u64 MoveGenerator::bishopMoves(u8 square, u64 occupancy) const
 {
-	return mBishopMoves[square][((occupancy & mBishopBlockmasks[square]) * mBishopMagics[square]) >> (64 - popCount(mBishopBlockmasks[square]))];
+	return mBishopMoves[square][((occupancy & mBishopBlockmasks[square]) * mBishopMagics[square]) >> (64 - popcount(mBishopBlockmasks[square]))];
 }
 
 u64 MoveGenerator::queenMoves(u8 square, u64 occupancy) const
@@ -82,6 +82,8 @@ MoveGenerator::MoveGenerator()
 
 	u64 shiftedIndex(0);
 
+	std::cout << "Initializing :\n* Knight moves...";
+
 	// Knight moves
 	for (u8 i(0); i < 64; ++i) {
 		shiftedIndex = static_cast<u64>(1) << i;
@@ -97,6 +99,8 @@ MoveGenerator::MoveGenerator()
 		mKnightMoves[i] |= (shiftedIndex >> 17) & ~file(FileH);
 		mKnightMoves[i] |= (shiftedIndex >> 10) & ~(file(FileG) | file(FileH));
 	}
+
+	std::cout << " done !\n* King moves...";
 
 	// King moves
 	for (u8 i(0); i < 64; ++i) {
@@ -114,6 +118,8 @@ MoveGenerator::MoveGenerator()
 		mKingMoves[i] |= (shiftedIndex >> 1) & ~file(FileH);
 	}
 
+	std::cout << " done !\n* Rook moves...";
+
 	// Rook blockmasks
 	for (u8 r(0); r < 8; ++r) {
 		for (u8 f(0); f < 8; ++f) {
@@ -129,6 +135,8 @@ MoveGenerator::MoveGenerator()
 		}
 	}
 
+	std::cout << " done !\n* Bishop moves...";
+
 	// Bishop blockmasks
 	for (u8 i(0); i < 64; ++i) {
 		mBishopBlockmasks[i] = _generateBishopMoves(i, 0);
@@ -136,16 +144,14 @@ MoveGenerator::MoveGenerator()
 
 		_generateMagics(i, Bishop);
 	}
+
+	std::cout << " done !\n";
 }
 
-MoveGenerator::~MoveGenerator()
-{
-}
-
-std::vector<u64> MoveGenerator::_permutations(u64 mask)
+std::vector<u64> MoveGenerator::_subMasks(u64 mask)
 {
 	std::vector<u8> bits;
-	std::vector<u64> permutations(pow(2, popCount(mask)));
+	std::vector<u64> subMasks(pow(2, popcount(mask)));
 
 	u64 shiftedIndex(1);
 
@@ -154,18 +160,18 @@ std::vector<u64> MoveGenerator::_permutations(u64 mask)
 			bits.push_back(i);
 	}
 
-	for (u16 i(0); i < permutations.size(); ++i) {
-		permutations[i] = 0;
+	for (u16 i(0); i < subMasks.size(); ++i) {
+		subMasks[i] = 0;
 		shiftedIndex = 1;
 
 		for (u8 p(0); p < bits.size(); ++p, shiftedIndex <<= 1) {
 			if (i & shiftedIndex) {
-				permutations[i] |= u64(1) << bits[p];
+				subMasks[i] |= u64(1) << bits[p];
 			}
 		}
 	}
 
-	return permutations;
+	return subMasks;
 }
 
 void MoveGenerator::_generateMagics(u8 square, PieceType type)
@@ -179,19 +185,19 @@ void MoveGenerator::_generateMagics(u8 square, PieceType type)
 
 	u64 n(0);
 	bool fail(true);
-	std::vector<u64> permutations(_permutations(blockmask));
+	std::vector<u64> subMasks(_subMasks(blockmask));
 
 	while (fail) {
 		n = distribution(generator) & distribution(generator) & distribution(generator); // Randomly generate a maybe magic number
-		movesArray = std::vector<u64>(permutations.size(), 0);
+		movesArray = std::vector<u64>(subMasks.size(), 0);
 
 		fail = false;
 
 		// Check if the current number is magic
-		for (u64 blockers : permutations) {
+		for (u64 blockers : subMasks) {
 			if (fail) break;
 
-			u16 index = (blockers * n) >> (64 - popCount(blockmask));
+			u16 index = (blockers * n) >> (64 - popcount(blockmask));
 
 			if (movesArray[index])
 				fail = movesArray[index] != (type == Rook ? _generateRookMoves(square, blockers) : _generateBishopMoves(square, blockers));
@@ -260,7 +266,7 @@ u64 MoveGenerator::_generateBishopMoves(u8 index, u64 occupancy)
 {
 	u64 moves(0), shiftedIndex(0);
 
-	shiftedIndex = static_cast<u64>(1) << index;
+	shiftedIndex = u64(1) << index;
 
 	if (shiftedIndex & ~file(FileH)) {
 		// North East
@@ -270,9 +276,9 @@ u64 MoveGenerator::_generateBishopMoves(u8 index, u64 occupancy)
 		} while (!(occupancy & shiftedIndex) && (shiftedIndex & ~file(FileH)));
 
 
-		shiftedIndex = static_cast<u64>(1) << index;
+		shiftedIndex = u64(1) << index;
 
-		// North West
+		// South East
 		do {
 			shiftedIndex >>= 7;
 			moves |= shiftedIndex;
@@ -280,7 +286,7 @@ u64 MoveGenerator::_generateBishopMoves(u8 index, u64 occupancy)
 	}
 
 
-	shiftedIndex = static_cast<u64>(1) << index;
+	shiftedIndex = u64(1) << index;
 
 	if (shiftedIndex & ~file(FileA)) {
 		// South West
@@ -290,9 +296,9 @@ u64 MoveGenerator::_generateBishopMoves(u8 index, u64 occupancy)
 		} while (!(occupancy & shiftedIndex) && (shiftedIndex & ~file(FileA)));
 
 
-		shiftedIndex = static_cast<u64>(1) << index;
+		shiftedIndex = u64(1) << index;
 
-		// South East
+		// North West
 		do {
 			shiftedIndex <<= 7;
 			moves |= shiftedIndex;

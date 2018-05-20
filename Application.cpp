@@ -8,7 +8,24 @@ Application::Application(u8 tileSize) :
 void Application::go()
 {
 	Game game;
-	u8 selectedSquare(-1);
+	u8 selectedSquare(-1), hoveredSquare(-1), promoCol(0), promoDelta(0);
+	int e(0);
+
+	AI ai;
+
+	bool promoSelection(false);
+
+	std::map<u8, u8> promoIndex;
+	promoIndex[Queen] = 0;
+	promoIndex[Rook] = 1;
+	promoIndex[Bishop] = 2;
+	promoIndex[Knight] = 3;
+
+	std::array<PieceType, 4> promoPiece;
+	promoPiece[0] = Queen;
+	promoPiece[1] = Rook;
+	promoPiece[2] = Bishop;
+	promoPiece[3] = Knight;
 
 	sf::Sprite sprite;
 	sf::RectangleShape tile(sf::Vector2f(mTileSize, mTileSize));
@@ -35,38 +52,83 @@ void Application::go()
 	while (mWindow.isOpen()) {
 		sf::Event event;
 
-		while (mWindow.pollEvent(event)) {
-			switch (event.type) {
-			case sf::Event::Closed:
-				mWindow.close();
-				break;
+		hoveredSquare = (7 - (sf::Mouse::getPosition(mWindow).y / mTileSize)) * 8 + (sf::Mouse::getPosition(mWindow).x / mTileSize);;
 
-			case sf::Event::MouseButtonPressed:
-				if (event.mouseButton.button == sf::Mouse::Left) {
-					u8 s = (7 - (event.mouseButton.y / mTileSize))*8 + (event.mouseButton.x / mTileSize);
+		if (game.activePlayer() == Black)
+			game.makeMove(ai.bestMove(game, 5));
+		else {
+			while (mWindow.pollEvent(event)) {
+				switch (event.type) {
+				case sf::Event::Closed:
+					mWindow.close();
+					break;
 
-					if (s == selectedSquare) {
-						selectedSquare = -1;
-						moves.clear();
-					} else {
+				case sf::Event::MouseButtonPressed:
+					if (event.mouseButton.button == sf::Mouse::Left) {
+						u8 s = (7 - (event.mouseButton.y / mTileSize)) * 8 + (event.mouseButton.x / mTileSize);
 
-						std::list<Move>::const_iterator it = std::find_if(moves.begin(), moves.end(), [s](const Move& m) { return m.to() == s; });
-						moves.clear();
+						if (promoSelection) {
+							if (s % 8 == promoCol) {
+								u8 i(e * (int(s / 8) - promoDelta));
 
-						if (it != moves.end())
-							game.makeMove(*it);
+								if (i >= 0 && i <= 3) {
+									PieceType t(promoPiece[i]);
+									std::list<Move>::const_iterator it = std::find_if(moves.begin(), moves.end(), [t](const Move& m) { return m.promotionType() == t; });
+
+									game.makeMove(*it);
+									promoSelection = false;
+									moves.clear();
+								}
+							}
+						}
 						else {
-							selectedSquare = s;
-							std::for_each(game.possibleMoves().begin(), game.possibleMoves().end(), [&moves, selectedSquare](const Move& m) { if (m.from() == selectedSquare) moves.push_back(m); });
+							if (s == selectedSquare) {
+								selectedSquare = -1;
+								moves.clear();
+							}
+							else {
+								std::list<Move>::const_iterator it = std::find_if(moves.begin(), moves.end(), [s](const Move& m) { return m.to() == s; });
+
+								if (it != moves.end()) {
+									if (it->isPromotion()) {
+										promoSelection = true;
+										promoDelta = 7 * (1 - game.activePlayer());
+										e = game.activePlayer() * 2 - 1;
+
+										promoCol = it->to() % 8;
+
+										std::list<Move> tmp;
+
+										while (it != moves.end()) {
+											tmp.push_back(*it);
+											tmp.erase(it);
+											it = std::find_if(moves.begin(), moves.end(), [s](const Move& m) { return m.to() == s; });
+										}
+
+										moves = tmp;
+									}
+									else {
+										moves.clear();
+										game.makeMove(*it);
+									}
+								}
+								else {
+									moves.clear();
+
+									selectedSquare = s;
+									std::for_each(game.possibleMoves().begin(), game.possibleMoves().end(), [&moves, selectedSquare](const Move& m) { if (m.from() == selectedSquare) moves.push_back(m); });
+								}
+							}
 						}
 					}
+
+					break;
 				}
-				
-				break;
 			}
 		}
 
 		mWindow.clear();
+
 
 		// Show the game
 		u64 p(1), s(0);
@@ -99,6 +161,27 @@ void Application::go()
 					sprite.setTexture(textures[bool(game.player(Black) & p)][pieceType]);
 					mWindow.draw(sprite);
 				}
+			}
+		}
+
+		// Show the selection of a promotion
+		if (promoSelection) {
+			for (u8 i(Knight); i <= Queen; ++i) {
+				s = (promoDelta + e * promoIndex[i]) * 8 + promoCol;
+				sf::Vector2f pos((s % 8) * mTileSize, (7 - int(s / 8)) * mTileSize);
+
+				if (s == hoveredSquare)
+					tile.setFillColor(sf::Color(255, 216, 0));
+				else
+					tile.setFillColor(sf::Color::White);
+				
+				sprite.setTexture(textures[game.activePlayer()][i]);
+
+				tile.setPosition(pos);
+				sprite.setPosition(pos);
+				
+				mWindow.draw(tile);
+				mWindow.draw(sprite);
 			}
 		}
 

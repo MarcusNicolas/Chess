@@ -1,8 +1,8 @@
 #ifndef APPLICATION_H
 #define APPLICATION_H
 
-#include "Game.h"
-#include <SFML\Graphics.hpp>
+#include "AI.h"
+#include "Hashing.h"
 
 class Application
 {

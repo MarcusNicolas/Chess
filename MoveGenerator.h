@@ -1,17 +1,6 @@
 #ifndef MOVEGENERATOR_H
 #define MOVEGENERATOR_H
 
-#include <array>
-#include <vector>
-#include <list>
-#include <map>
-#include <exception>
-#include <iostream>
-
-#include <random>
-#include <chrono>
-#include <iostream>
-
 #include "defs.h"
 
 class MoveGenerator

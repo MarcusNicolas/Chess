@@ -1,5 +1,9 @@
 #include "Move.h"
 
+Move::Move()
+{
+}
+
 Move::Move(u8 from, u8 to, MoveType type) :
 	mMove(type << 12 | (from & 0x3F) << 6 | (to & 0x3F))
 {
@@ -35,7 +39,32 @@ MoveType Move::type() const
 	return MoveType(mMove >> 12);
 }
 
+PieceType Move::promotionType() const
+{
+	return PieceType((type() & 0x3) + 1);
+}
+
 bool operator==(const Move& a, const Move& b)
 {
 	return a.mMove == b.mMove;
+}
+
+bool operator<(const Move& a, const Move& b)
+{
+	return u8(b.isCapture()) < u8(a.isCapture());
+}
+
+bool operator>(const Move& a, const Move& b)
+{
+	return !(a <= b);
+}
+
+bool operator<=(const Move& a, const Move& b)
+{
+	return a < b || a == b;
+}
+
+bool operator>=(const Move& a, const Move& b)
+{
+	return a > b || a == b;
 }

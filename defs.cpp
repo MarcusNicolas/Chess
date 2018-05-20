@@ -25,3 +25,8 @@ Player otherPlayer(Player player)
 {
 	return Player(1 - player);
 }
+
+i8 playerSign(Player player)
+{
+	return 1 - 2 * player;
+}

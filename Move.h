@@ -6,6 +6,7 @@
 class Move
 {
 public:
+	Move();
 	Move(u8, u8, MoveType);
 
 	bool isCastle() const;
@@ -15,11 +16,17 @@ public:
 	u8 from() const;
 	u8 to() const;
 	MoveType type() const;
+	PieceType promotionType() const;
 
 	friend bool operator==(const Move&, const Move&);
 
 private:
 	u32 mMove;
 };
+
+bool operator<(const Move&, const Move&);
+bool operator>(const Move&, const Move&);
+bool operator<=(const Move&, const Move&);
+bool operator>=(const Move&, const Move&);
 
 #endif // MOVE_H

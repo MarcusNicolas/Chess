@@ -2,7 +2,7 @@
 
 std::array<i8, 2> Game::mPawnShift = { 8, -8 };
 std::array<u64, 2> Game::mDoublePushMask = { MoveGenerator::rank(Rank3), MoveGenerator::rank(Rank6) };
-std::array<u64, 2> Game::mPromotionMask = { MoveGenerator::rank(Rank8), MoveGenerator::rank(Rank1) };
+std::array<u64, 2> Game::mPromotionMask  = { MoveGenerator::rank(Rank8), MoveGenerator::rank(Rank1) };
 
 std::array<u8, 2> Game::mCastleDelta = { 0, 56 };
 std::array<u8, 2> Game::mCastleShift = { 0, 2 };
@@ -52,14 +52,33 @@ Game::Game() :
 
 	_generateMoves();
 
-	/*for (u8 i(0); i < 8; ++i) {
-	for (u8 j(0); j < 8; ++j)
-	std::cout << int(char(mPieceTypes[(7 - i) * 8 + j] + 1)) << " ";
+	mHashs.push(0);
+}
 
-	std::cout << "\n";
+Game::Game(const Game& game) :
+	mOccupancy(game.mOccupancy),
+	mPlayers(game.mPlayers),
+	mPieces(game.mPieces),
+	mKings(game.mKings),
+	mPieceTypes(game.mPieceTypes),
+	mActivePlayer(game.mActivePlayer),
+	mHalfmoveClock(game.mHalfmoveClock),
+	mEnPassantSquare(game.mEnPassantSquare),
+	mCastlingRights(game.mCastlingRights),
+	mStatus(game.mStatus)
+{
+	mMoves.push(game.possibleMoves());
+	mHashs.push(game.hash());
+}
+
+Game::~Game()
+{
+	while (mHistory.size()) {
+		if (mHistory.top().targetSquare != nullptr)
+			delete mHistory.top().targetSquare;
+
+		mHistory.pop();
 	}
-
-	std::cout << "\n\n";*/
 }
 
 u64 Game::occupancy() const
@@ -87,6 +106,26 @@ u8 Game::pieceType(u8 square) const
 	return mPieceTypes[square];
 }
 
+Player Game::activePlayer() const
+{
+	return mActivePlayer;
+}
+
+u8 Game::castlingRights() const
+{
+	return mCastlingRights;
+}
+
+u8 Game::enPassantSquare() const
+{
+	return mEnPassantSquare;
+}
+
+u64 Game::hash() const
+{
+	return mHashs.top();
+}
+
 const std::list<Move>& Game::possibleMoves() const
 {
 	return mMoves.top();
@@ -112,7 +151,7 @@ void Game::makeMove(const Move& move)
 	if (std::find(mMoves.top().begin(), mMoves.top().end(), move) == mMoves.top().end())
 		return;
 
-	_makeMove(move);
+	mHashs.push(hash() ^ _makeMove(move));
 	_generateMoves();
 }
 
@@ -123,34 +162,40 @@ void Game::unmakeMove()
 
 	_unmakeMove();
 	mMoves.pop();
+	mHashs.pop();
 }
 
-void Game::_makeMove(const Move& move)
+u64 Game::_makeMove(const Move& move)
 {
-	Undo undo({ move, u8(-1), Pawn, mHalfmoveClock, mEnPassantSquare, mCastlingRights });
+	Undo undo({ move, nullptr, Pawn, mHalfmoveClock, mEnPassantSquare , mCastlingRights });
 
 	++mHalfmoveClock;
 	mEnPassantSquare = -1;
 
+	u64 hash(Hashing::instance().hashTurn());
+	
+	hash ^= Hashing::instance().hashCastlingRights(mCastlingRights);
+	hash ^= Hashing::instance().hashEnPassantFile(mEnPassantSquare % 8);
+	
+
 	// If castle
 	if (move.isCastle()) {
-		_movePiece(mCastleDelta[mActivePlayer] + mCastleRookFrom[move.type() - 2],
-			mCastleDelta[mActivePlayer] + mCastleRookTo[move.type() - 2],
-			mActivePlayer);
-	}
-	else {
+		hash ^= _movePiece(mCastleDelta[mActivePlayer] + mCastleRookFrom[move.type() - 2],
+			               mCastleDelta[mActivePlayer] + mCastleRookTo[move.type() - 2],
+			               mActivePlayer);
+	} else {
 		// If capture, remove target
 		if (move.isCapture()) {
-			undo.targetSquare = move.to();
+			undo.targetSquare = new u8(move.to());
 
 			if (move.type() == EnPassant)
-				undo.targetSquare += mPawnShift[otherPlayer(mActivePlayer)];
+				*undo.targetSquare += mPawnShift[otherPlayer(mActivePlayer)];
 
-			undo.targetType = PieceType(mPieceTypes[undo.targetSquare]);
+			undo.targetType = PieceType(mPieceTypes[*undo.targetSquare]);
 
 			// If one of the castling rooks is eaten, then remove corresponding castling rights
 			if (undo.targetType == Rook && mCastlingRights) {
-				switch (char(undo.targetSquare) - mCastleDelta[otherPlayer(mActivePlayer)]) {
+				switch (char(*undo.targetSquare) - mCastleDelta[otherPlayer(mActivePlayer)]) {
 				case 7:
 					mCastlingRights &= ~(WhiteKingCastle << mCastleShift[otherPlayer(mActivePlayer)]);
 					break;
@@ -162,14 +207,14 @@ void Game::_makeMove(const Move& move)
 			}
 
 
-			_removePiece(undo.targetSquare, undo.targetType, otherPlayer(mActivePlayer));
+			hash ^= _removePiece(*undo.targetSquare, undo.targetType, otherPlayer(mActivePlayer));
 			mHalfmoveClock = 0;
 		}
 
 		// If promo, add new piece and delete pawn
 		if (move.isPromotion()) {
-			_removePiece(move.from(), Pawn, mActivePlayer);
-			_addPiece(move.from(), PieceType((move.type() & 0x3) + 1), mActivePlayer);
+			hash ^= _removePiece(move.from(), Pawn, mActivePlayer);
+			hash ^= _addPiece(move.from(), move.promotionType(), mActivePlayer);
 		}
 	}
 
@@ -192,7 +237,7 @@ void Game::_makeMove(const Move& move)
 	}
 
 	// Make the move
-	_movePiece(move.from(), move.to(), mActivePlayer);
+	hash ^= _movePiece(move.from(), move.to(), mActivePlayer);
 
 	if (mPieceTypes[move.to()] == Pawn) {
 		mHalfmoveClock = 0;
@@ -202,9 +247,16 @@ void Game::_makeMove(const Move& move)
 
 	}
 
+
+	hash ^= Hashing::instance().hashCastlingRights(mCastlingRights);
+	hash ^= Hashing::instance().hashEnPassantFile(mEnPassantSquare % 8);
+
+
 	// End the turn
 	mActivePlayer = otherPlayer(mActivePlayer);
 	mHistory.push(undo);
+
+	return hash;
 }
 
 void Game::_unmakeMove()
@@ -235,23 +287,27 @@ void Game::_unmakeMove()
 
 		// Unmake the capture
 		if (undo.move.isCapture())
-			_addPiece(undo.targetSquare, undo.targetType, otherPlayer(mActivePlayer));
+			_addPiece(*undo.targetSquare, undo.targetType, otherPlayer(mActivePlayer));
 	}
+
+	if (undo.targetSquare != nullptr)
+		delete undo.targetSquare;
 
 	mHistory.pop();
 }
 
-void Game::_movePiece(u8 from, u8 to, Player player)
+u64 Game::_movePiece(u8 from, u8 to, Player player)
 {
 	PieceType pieceType = PieceType(mPieceTypes[from]);
 
-	_removePiece(from, pieceType, player);
-	_addPiece(to, pieceType, player);
+	u64 hash(_removePiece(from, pieceType, player) ^ _addPiece(to, pieceType, player));
 
 	_refreshKingSquare(player);
+
+	return hash;
 }
 
-void Game::_addPiece(u8 square, PieceType type, Player player)
+u64 Game::_addPiece(u8 square, PieceType type, Player player)
 {
 	u64 mask = u64(1) << square;
 
@@ -260,9 +316,11 @@ void Game::_addPiece(u8 square, PieceType type, Player player)
 	mOccupancy |= mask;
 
 	mPieceTypes[square] = type;
+
+	return Hashing::instance().hashPiece(square, type, player);
 }
 
-void Game::_removePiece(u8 square, PieceType type, Player player)
+u64 Game::_removePiece(u8 square, PieceType type, Player player)
 {
 	u64 mask = ~(u64(1) << square);
 
@@ -271,6 +329,8 @@ void Game::_removePiece(u8 square, PieceType type, Player player)
 	mOccupancy &= mask;
 
 	mPieceTypes[square] = -1;
+
+	return Hashing::instance().hashPiece(square, type, player);
 }
 
 void Game::_refreshKingSquare(Player player)
@@ -313,6 +373,10 @@ void Game::_generateMoves()
 		else
 			mStatus = Draw; // Stalemate
 	}
+
+
+	// Sort the generated moves (alpha beta)
+	mMoves.top().sort();
 }
 
 void Game::_addPawnMoves(Player player)
@@ -323,18 +387,6 @@ void Game::_addPawnMoves(Player player)
 
 	if (!pawns)
 		return;
-
-
-	// Pawn push
-	pushMoves = circularShift(pawns, mPawnShift[player]) & ~mOccupancy;
-	_addMovesShift(mPawnShift[player], pushMoves & ~mPromotionMask[player], QuietMove);
-	_addPromoShift(mPawnShift[player], pushMoves & mPromotionMask[player]);
-
-	// Pawn double push
-	pushMoves = circularShift(pushMoves & mDoublePushMask[player], mPawnShift[player]) & ~mOccupancy;
-	_addMovesShift(2 * mPawnShift[player], pushMoves, DoublePush);
-
-
 
 	pushMoves = circularShift(pawns, mPawnShift[player]);
 
@@ -349,6 +401,16 @@ void Game::_addPawnMoves(Player player)
 	_addMovesShift(mPawnShift[player] - 1, captureMoves & mPlayers[otherPlayer(player)] & ~mPromotionMask[player], Capture);
 	_addMovesShift(mPawnShift[player] - 1, captureMoves & enPassant, EnPassant);
 	_addPromoCaptureShift(mPawnShift[player] - 1, captureMoves & mPlayers[otherPlayer(player)] & mPromotionMask[player]);
+
+
+	// Pawn push
+	pushMoves = circularShift(pawns, mPawnShift[player]) & ~mOccupancy;
+	_addMovesShift(mPawnShift[player], pushMoves & ~mPromotionMask[player], QuietMove);
+	_addPromoShift(mPawnShift[player], pushMoves & mPromotionMask[player]);
+
+	// Pawn double push
+	pushMoves = circularShift(pushMoves & mDoublePushMask[player], mPawnShift[player]) & ~mOccupancy;
+	_addMovesShift(2 * mPawnShift[player], pushMoves, DoublePush);
 }
 
 void Game::_addKnightMoves(Player player)

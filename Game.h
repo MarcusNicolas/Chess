@@ -1,19 +1,15 @@
 #ifndef GAME_H
 #define GAME_H
 
-#include <stack>
-#include <iostream>
-
-#include <string>
-
 #include "Move.h"
 #include "MoveGenerator.h"
+#include "Hashing.h"
 
 struct Undo
 {
 	Move move;
 
-	u8 targetSquare;
+	u8* targetSquare;
 	PieceType targetType;
 
 	u8 halfmoveClock;
@@ -25,6 +21,9 @@ class Game
 {
 public:
 	Game();
+	Game(const Game&);
+
+	~Game();
 
 	u64 occupancy() const;
 
@@ -32,6 +31,12 @@ public:
 	u64 pieces(PieceType) const;
 	u64 piecesOf(Player, PieceType) const;
 	u8 pieceType(u8) const;
+
+	Player activePlayer() const;
+	u8 castlingRights() const;
+	u8 enPassantSquare() const;
+
+	u64 hash() const;
 
 	const std::list<Move>& possibleMoves() const;
 
@@ -54,12 +59,12 @@ private:
 	static std::array<u8, 2> mCastleRookTo;
 
 
-	void _makeMove(const Move&);
+	u64 _makeMove(const Move&);
 	void _unmakeMove();
 
-	void _movePiece(u8, u8, Player);
-	void _addPiece(u8, PieceType, Player);
-	void _removePiece(u8, PieceType, Player);
+	u64 _movePiece(u8, u8, Player);
+	u64 _addPiece(u8, PieceType, Player);
+	u64 _removePiece(u8, PieceType, Player);
 
 	void _refreshKingSquare(Player);
 
@@ -101,6 +106,7 @@ private:
 
 	std::stack<std::list<Move>> mMoves;
 	std::stack<Undo> mHistory;
+	std::stack<u64> mHashs;
 };
 
 

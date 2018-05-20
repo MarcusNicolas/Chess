@@ -3,6 +3,24 @@
 
 #include <intrin.h>
 
+#include <utility>
+#include <algorithm>
+
+#include <array>
+#include <vector>
+#include <list>
+#include <map>
+#include <exception>
+#include <stack>
+
+#include <string>
+#include <iostream>
+
+#include <random>
+#include <chrono>
+
+#include <SFML\Graphics.hpp>
+
 typedef char i8;
 typedef short i16;
 typedef long i32;
@@ -12,6 +30,8 @@ typedef unsigned char u8;
 typedef unsigned short u16;
 typedef unsigned long u32;
 typedef unsigned long long u64;
+
+#define INFINITY 100000.
 
 
 enum Player {
@@ -52,6 +72,12 @@ enum MoveType {
 	QueenPromoCapture
 };
 
+enum NodeType {
+	PVNode,
+	AllNode,
+	CutNode
+};
+
 enum File {
 	FileA,
 	FileB,
@@ -88,5 +114,6 @@ u64 circularShift(u64, u8);
 u8 bsfReset(u64&);
 
 Player otherPlayer(Player);
+i8 playerSign(Player);
 
 #endif // DEFS_H

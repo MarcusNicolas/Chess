@@ -20,6 +20,7 @@
 #include <chrono>
 
 #include <SFML\Graphics.hpp>
+#include <SFML\Audio.hpp>
 
 typedef char i8;
 typedef short i16;

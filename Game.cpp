@@ -153,6 +153,18 @@ void Game::makeMove(const Move& move)
 
 	mHashs.push(hash() ^ _makeMove(move));
 	_generateMoves();
+
+
+	// If no moves are available, then game is finished
+	if (!mMoves.size()) {
+		if (isKingInCheck(mActivePlayer))
+			mStatus = Status(1 - mActivePlayer); // Checkmate
+		else
+			mStatus = Draw; // Stalemate
+	}
+
+	if (mHalfmoveClock > 100)
+		mStatus = Draw;
 }
 
 void Game::unmakeMove()
@@ -163,6 +175,8 @@ void Game::unmakeMove()
 	_unmakeMove();
 	mMoves.pop();
 	mHashs.pop();
+
+	mStatus = Ongoing;
 }
 
 u64 Game::_makeMove(const Move& move)
@@ -364,15 +378,6 @@ void Game::_generateMoves()
 
 	if (_canCastleQueenSide(mActivePlayer))
 		mMoves.top().push_back(Move(mCastleDelta[mActivePlayer] + 4, mCastleDelta[mActivePlayer] + 2, QueenCastle));
-
-
-	// If no moves are available, then game is finished
-	if (!mMoves.size()) {
-		if (isKingInCheck(mActivePlayer))
-			mStatus = Status(1 - mActivePlayer); // Checkmate
-		else
-			mStatus = Draw; // Stalemate
-	}
 
 
 	// Sort the generated moves (alpha beta)

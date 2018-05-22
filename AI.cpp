@@ -1,5 +1,62 @@
 #include "AI.h"
 
+std::array<std::array<double, 64>, 6> AI::sPositionalScore =
+{   // Pawn
+	{ 0., 0., 0., 0., 0., 0., 0., 0.,
+	  .05, .10, .10, -.20, -.20, .10, .10, .05,
+	  .05, -.05, -.10, 0., 0., -.10, -.05, .05,
+	  0., 0., 0., .20, .20, 0., 0., 0.,
+	  .05, .05, .10, .25, .25, .10, .05, .05,
+	  .10, .10, .20, .30, .30, .20, .10, .10,
+	  .50, .50, .50, .50, .50, .50, .50, .50,
+	  0., 0., 0., 0., 0., 0., 0., 0.},
+	// Knight
+	{ -.50, -.40, -.30, -.30, -.30, -.30, -.40, -.50,
+	  -.40, -.20, 0., .05, .05, 0., -.20, -.40,
+	  -.30, .05, .10, .15, .15, .10, .05, -.30,
+	  -.30, 0., .15, .20, .20, .15, 0., -.30,
+	  -.30, 0., .15, .20, .20, .15, 0., -.30,
+	  -.30, .05, .10, .15, .15, .10, .05, -.30,
+	  -.40, -.20, 0., .05, .05, 0., -.20, -.40,
+	  -.50, -.40, -.30, -.30, -.30, -.30, -.40, -.50 },
+	// Bishop
+	{ 0., 0., 0., 0., 0., 0., 0., 0.,
+	  0., 0., 0., 0., 0., 0., 0., 0.,
+	  0., 0., 0., 0., 0., 0., 0., 0.,
+	  0., 0., 0., 0., 0., 0., 0., 0.,
+	  0., 0., 0., 0., 0., 0., 0., 0.,
+	  0., 0., 0., 0., 0., 0., 0., 0.,
+	  0., 0., 0., 0., 0., 0., 0., 0.,
+	  0., 0., 0., 0., 0., 0., 0., 0. },
+	// Rook
+	{ 0., 0., 0., 0., 0., 0., 0., 0.,
+	  0., 0., 0., 0., 0., 0., 0., 0.,
+	  0., 0., 0., 0., 0., 0., 0., 0.,
+	  0., 0., 0., 0., 0., 0., 0., 0.,
+	  0., 0., 0., 0., 0., 0., 0., 0.,
+	  0., 0., 0., 0., 0., 0., 0., 0.,
+	  0., 0., 0., 0., 0., 0., 0., 0.,
+	  0., 0., 0., 0., 0., 0., 0., 0. },
+	// Queen
+	{ 0., 0., 0., 0., 0., 0., 0., 0.,
+	  0., 0., 0., 0., 0., 0., 0., 0.,
+	  0., 0., 0., 0., 0., 0., 0., 0.,
+	  0., 0., 0., 0., 0., 0., 0., 0.,
+	  0., 0., 0., 0., 0., 0., 0., 0.,
+	  0., 0., 0., 0., 0., 0., 0., 0.,
+	  0., 0., 0., 0., 0., 0., 0., 0.,
+	  0., 0., 0., 0., 0., 0., 0., 0. },
+	// King
+	{ 0., 0., 0., 0., 0., 0., 0., 0.,
+	  0., 0., 0., 0., 0., 0., 0., 0.,
+	  0., 0., 0., 0., 0., 0., 0., 0., 
+	  0., 0., 0., 0., 0., 0., 0., 0., 
+	  0., 0., 0., 0., 0., 0., 0., 0., 
+	  0., 0., 0., 0., 0., 0., 0., 0., 
+	  0., 0., 0., 0., 0., 0., 0., 0., 
+	  0., 0., 0., 0., 0., 0., 0., 0. }
+};
+
 AI::AI() :
 	mTranspositionTable((u64(1) << 24) + 43) // To make it a prime number
 {
@@ -15,32 +72,32 @@ double AI::_evaluate(const Game& game, Player player) const
 {
 	double score = 0;
 	
-	score += 1 * (popcount(game.piecesOf(player, Pawn))   - popcount(game.piecesOf(otherPlayer(player), Pawn)));
-	score += 3 * (popcount(game.piecesOf(player, Knight)) - popcount(game.piecesOf(otherPlayer(player), Knight)));
-	score += 3 * (popcount(game.piecesOf(player, Bishop)) - popcount(game.piecesOf(otherPlayer(player), Bishop)));
-	score += 5 * (popcount(game.piecesOf(player, Rook))   - popcount(game.piecesOf(otherPlayer(player), Rook)));
-	score += 9 * (popcount(game.piecesOf(player, Queen))  - popcount(game.piecesOf(otherPlayer(player), Queen)));
+	score += 1.0 * (popcount(game.piecesOf(player, Pawn))   - popcount(game.piecesOf(otherPlayer(player), Pawn)));
+	score += 3.2 * (popcount(game.piecesOf(player, Knight)) - popcount(game.piecesOf(otherPlayer(player), Knight)));
+	score += 3.3 * (popcount(game.piecesOf(player, Bishop)) - popcount(game.piecesOf(otherPlayer(player), Bishop)));
+	score += 5.0 * (popcount(game.piecesOf(player, Rook))   - popcount(game.piecesOf(otherPlayer(player), Rook)));
+	score += 9.0 * (popcount(game.piecesOf(player, Queen))  - popcount(game.piecesOf(otherPlayer(player), Queen)));
 
 	switch (game.status())
 	{
 	case WhiteWin:
 		if (player == White)
-			score += 1000;
+			score += 1000.;
 		else
-			score -= 1000;
+			score -= 1000.;
 
 		break;
 
 	case BlackWin:
 		if (player == Black)
-			score += 1000;
+			score += 1000.;
 		else
-			score -= 1000;
+			score -= 1000.;
 
 		break;
 
 	case Draw:
-		score -= 200;
+		score -= 200.;
 	}
 
 	return score;

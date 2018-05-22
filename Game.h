@@ -49,14 +49,14 @@ public:
 	void unmakeMove();
 
 private:
-	static std::array<i8, 2> mPawnShift;
-	static std::array<u64, 2> mDoublePushMask;
-	static std::array<u64, 2> mPromotionMask;
+	static std::array<i8, 2> sPawnShift;
+	static std::array<u64, 2> sDoublePushMask;
+	static std::array<u64, 2> sPromotionMask;
 
-	static std::array<u8, 2> mCastleDelta;
-	static std::array<u8, 2> mCastleShift;
-	static std::array<u8, 2> mCastleRookFrom;
-	static std::array<u8, 2> mCastleRookTo;
+	static std::array<u8, 2> sCastleDelta;
+	static std::array<u8, 2> sCastleShift;
+	static std::array<u8, 2> sCastleRookFrom;
+	static std::array<u8, 2> sCastleRookTo;
 
 
 	u64 _makeMove(const Move&);

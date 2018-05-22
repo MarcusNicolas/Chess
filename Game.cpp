@@ -1,13 +1,13 @@
 #include "Game.h"
 
-std::array<i8, 2> Game::mPawnShift = { 8, -8 };
-std::array<u64, 2> Game::mDoublePushMask = { MoveGenerator::rank(Rank3), MoveGenerator::rank(Rank6) };
-std::array<u64, 2> Game::mPromotionMask  = { MoveGenerator::rank(Rank8), MoveGenerator::rank(Rank1) };
+std::array<i8, 2> Game::sPawnShift = { 8, -8 };
+std::array<u64, 2> Game::sDoublePushMask = { MoveGenerator::rank(Rank3), MoveGenerator::rank(Rank6) };
+std::array<u64, 2> Game::sPromotionMask  = { MoveGenerator::rank(Rank8), MoveGenerator::rank(Rank1) };
 
-std::array<u8, 2> Game::mCastleDelta = { 0, 56 };
-std::array<u8, 2> Game::mCastleShift = { 0, 2 };
-std::array<u8, 2> Game::mCastleRookFrom = { 7, 0 };
-std::array<u8, 2> Game::mCastleRookTo = { 5, 3 };
+std::array<u8, 2> Game::sCastleDelta = { 0, 56 };
+std::array<u8, 2> Game::sCastleShift = { 0, 2 };
+std::array<u8, 2> Game::sCastleRookFrom = { 7, 0 };
+std::array<u8, 2> Game::sCastleRookTo = { 5, 3 };
 
 Game::Game() :
 	mActivePlayer(White),
@@ -156,7 +156,7 @@ void Game::makeMove(const Move& move)
 
 
 	// If no moves are available, then game is finished
-	if (!mMoves.size()) {
+	if (!mMoves.top().size()) {
 		if (isKingInCheck(mActivePlayer))
 			mStatus = Status(1 - mActivePlayer); // Checkmate
 		else
@@ -194,8 +194,8 @@ u64 Game::_makeMove(const Move& move)
 
 	// If castle
 	if (move.isCastle()) {
-		hash ^= _movePiece(mCastleDelta[mActivePlayer] + mCastleRookFrom[move.type() - 2],
-			               mCastleDelta[mActivePlayer] + mCastleRookTo[move.type() - 2],
+		hash ^= _movePiece(sCastleDelta[mActivePlayer] + sCastleRookFrom[move.type() - 2],
+			               sCastleDelta[mActivePlayer] + sCastleRookTo[move.type() - 2],
 			               mActivePlayer);
 	} else {
 		// If capture, remove target
@@ -203,19 +203,19 @@ u64 Game::_makeMove(const Move& move)
 			undo.targetSquare = new u8(move.to());
 
 			if (move.type() == EnPassant)
-				*undo.targetSquare += mPawnShift[otherPlayer(mActivePlayer)];
+				*undo.targetSquare += sPawnShift[otherPlayer(mActivePlayer)];
 
 			undo.targetType = PieceType(mPieceTypes[*undo.targetSquare]);
 
 			// If one of the castling rooks is eaten, then remove corresponding castling rights
 			if (undo.targetType == Rook && mCastlingRights) {
-				switch (char(*undo.targetSquare) - mCastleDelta[otherPlayer(mActivePlayer)]) {
+				switch (char(*undo.targetSquare) - sCastleDelta[otherPlayer(mActivePlayer)]) {
 				case 7:
-					mCastlingRights &= ~(WhiteKingCastle << mCastleShift[otherPlayer(mActivePlayer)]);
+					mCastlingRights &= ~(WhiteKingCastle << sCastleShift[otherPlayer(mActivePlayer)]);
 					break;
 
 				case 0:
-					mCastlingRights &= ~(WhiteQueenCastle << mCastleShift[otherPlayer(mActivePlayer)]);
+					mCastlingRights &= ~(WhiteQueenCastle << sCastleShift[otherPlayer(mActivePlayer)]);
 					break;
 				}
 			}
@@ -235,17 +235,17 @@ u64 Game::_makeMove(const Move& move)
 
 	// If the king or a rook is moved, then remove castling rights
 	if (mCastlingRights) {
-		switch (char(move.from()) - mCastleDelta[mActivePlayer]) {
+		switch (char(move.from()) - sCastleDelta[mActivePlayer]) {
 		case 4:
-			mCastlingRights &= ~(0x3 << mCastleShift[mActivePlayer]);
+			mCastlingRights &= ~(0x3 << sCastleShift[mActivePlayer]);
 			break;
 
 		case 7:
-			mCastlingRights &= ~(WhiteKingCastle << mCastleShift[mActivePlayer]);
+			mCastlingRights &= ~(WhiteKingCastle << sCastleShift[mActivePlayer]);
 			break;
 
 		case 0:
-			mCastlingRights &= ~(WhiteQueenCastle << mCastleShift[mActivePlayer]);
+			mCastlingRights &= ~(WhiteQueenCastle << sCastleShift[mActivePlayer]);
 			break;
 		}
 	}
@@ -257,7 +257,7 @@ u64 Game::_makeMove(const Move& move)
 		mHalfmoveClock = 0;
 
 		if (move.type() == DoublePush)
-			mEnPassantSquare = move.to() - mPawnShift[mActivePlayer];
+			mEnPassantSquare = move.to() - sPawnShift[mActivePlayer];
 
 	}
 
@@ -288,8 +288,8 @@ void Game::_unmakeMove()
 
 	// Unmake the castle
 	if (undo.move.isCastle()) {
-		_movePiece(mCastleDelta[mActivePlayer] + mCastleRookTo[undo.move.type() - 2],
-			mCastleDelta[mActivePlayer] + mCastleRookFrom[undo.move.type() - 2],
+		_movePiece(sCastleDelta[mActivePlayer] + sCastleRookTo[undo.move.type() - 2],
+			sCastleDelta[mActivePlayer] + sCastleRookFrom[undo.move.type() - 2],
 			mActivePlayer);
 	}
 	else {
@@ -374,10 +374,10 @@ void Game::_generateMoves()
 	}
 
 	if (_canCastleKingSide(mActivePlayer))
-		mMoves.top().push_back(Move(mCastleDelta[mActivePlayer] + 4, mCastleDelta[mActivePlayer] + 6, KingCastle));
+		mMoves.top().push_back(Move(sCastleDelta[mActivePlayer] + 4, sCastleDelta[mActivePlayer] + 6, KingCastle));
 
 	if (_canCastleQueenSide(mActivePlayer))
-		mMoves.top().push_back(Move(mCastleDelta[mActivePlayer] + 4, mCastleDelta[mActivePlayer] + 2, QueenCastle));
+		mMoves.top().push_back(Move(sCastleDelta[mActivePlayer] + 4, sCastleDelta[mActivePlayer] + 2, QueenCastle));
 
 
 	// Sort the generated moves (alpha beta)
@@ -393,29 +393,29 @@ void Game::_addPawnMoves(Player player)
 	if (!pawns)
 		return;
 
-	pushMoves = circularShift(pawns, mPawnShift[player]);
+	pushMoves = circularShift(pawns, sPawnShift[player]);
 
 	// Pawn right capture
 	captureMoves = circularShift(pushMoves, 1) & ~MoveGenerator::file(FileA);
-	_addMovesShift(mPawnShift[player] + 1, captureMoves & mPlayers[otherPlayer(player)] & ~mPromotionMask[player], Capture);
-	_addMovesShift(mPawnShift[player] + 1, captureMoves & enPassant, EnPassant);
-	_addPromoCaptureShift(mPawnShift[player] + 1, captureMoves & mPlayers[otherPlayer(player)] & mPromotionMask[player]);
+	_addMovesShift(sPawnShift[player] + 1, captureMoves & mPlayers[otherPlayer(player)] & ~sPromotionMask[player], Capture);
+	_addMovesShift(sPawnShift[player] + 1, captureMoves & enPassant, EnPassant);
+	_addPromoCaptureShift(sPawnShift[player] + 1, captureMoves & mPlayers[otherPlayer(player)] & sPromotionMask[player]);
 
 	// Pawn left capture
 	captureMoves = circularShift(pushMoves, 64 - 1) & ~MoveGenerator::file(FileH);
-	_addMovesShift(mPawnShift[player] - 1, captureMoves & mPlayers[otherPlayer(player)] & ~mPromotionMask[player], Capture);
-	_addMovesShift(mPawnShift[player] - 1, captureMoves & enPassant, EnPassant);
-	_addPromoCaptureShift(mPawnShift[player] - 1, captureMoves & mPlayers[otherPlayer(player)] & mPromotionMask[player]);
+	_addMovesShift(sPawnShift[player] - 1, captureMoves & mPlayers[otherPlayer(player)] & ~sPromotionMask[player], Capture);
+	_addMovesShift(sPawnShift[player] - 1, captureMoves & enPassant, EnPassant);
+	_addPromoCaptureShift(sPawnShift[player] - 1, captureMoves & mPlayers[otherPlayer(player)] & sPromotionMask[player]);
 
 
 	// Pawn push
-	pushMoves = circularShift(pawns, mPawnShift[player]) & ~mOccupancy;
-	_addMovesShift(mPawnShift[player], pushMoves & ~mPromotionMask[player], QuietMove);
-	_addPromoShift(mPawnShift[player], pushMoves & mPromotionMask[player]);
+	pushMoves = circularShift(pawns, sPawnShift[player]) & ~mOccupancy;
+	_addMovesShift(sPawnShift[player], pushMoves & ~sPromotionMask[player], QuietMove);
+	_addPromoShift(sPawnShift[player], pushMoves & sPromotionMask[player]);
 
 	// Pawn double push
-	pushMoves = circularShift(pushMoves & mDoublePushMask[player], mPawnShift[player]) & ~mOccupancy;
-	_addMovesShift(2 * mPawnShift[player], pushMoves, DoublePush);
+	pushMoves = circularShift(pushMoves & sDoublePushMask[player], sPawnShift[player]) & ~mOccupancy;
+	_addMovesShift(2 * sPawnShift[player], pushMoves, DoublePush);
 }
 
 void Game::_addKnightMoves(Player player)
@@ -540,21 +540,21 @@ bool Game::_isAttacked(u8 square, Player player) const
 		MoveGenerator::instance().bishopMoves(square, occupancy()) & (piecesOf(by, Bishop) | piecesOf(by, Queen)) ||
 		MoveGenerator::instance().knightMoves(square) & piecesOf(by, Knight) ||
 		MoveGenerator::instance().kingMoves(square) & piecesOf(by, King) ||
-		(circularShift(left | right, mPawnShift[player]) & piecesOf(by, Pawn));
+		(circularShift(left | right, sPawnShift[player]) & piecesOf(by, Pawn));
 }
 
 bool Game::_canCastleKingSide(Player player) const
 {
-	return (mCastlingRights & (WhiteKingCastle << mCastleShift[player])) &&
-		!(mOccupancy & (u64(0x60) << mCastleDelta[player])) &&
-		!(isKingInCheck(player) || _isAttacked(mCastleDelta[player] + 5, player) || _isAttacked(mCastleDelta[player] + 6, player));
+	return (mCastlingRights & (WhiteKingCastle << sCastleShift[player])) &&
+		!(mOccupancy & (u64(0x60) << sCastleDelta[player])) &&
+		!(isKingInCheck(player) || _isAttacked(sCastleDelta[player] + 5, player) || _isAttacked(sCastleDelta[player] + 6, player));
 }
 
 bool Game::_canCastleQueenSide(Player player) const
 {
-	return (mCastlingRights & (WhiteQueenCastle << mCastleShift[player])) &&
-		!(mOccupancy & (u64(0xE) << mCastleDelta[player])) &&
-		!(isKingInCheck(player) || _isAttacked(mCastleDelta[player] + 3, player) || _isAttacked(mCastleDelta[player] + 2, player));
+	return (mCastlingRights & (WhiteQueenCastle << sCastleShift[player])) &&
+		!(mOccupancy & (u64(0xE) << sCastleDelta[player])) &&
+		!(isKingInCheck(player) || _isAttacked(sCastleDelta[player] + 3, player) || _isAttacked(sCastleDelta[player] + 2, player));
 }
 
 

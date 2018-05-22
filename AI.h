@@ -16,6 +16,8 @@ private:
 	std::pair<double, Move> _negamax(Game*, u8, double, double, Player);
 
 	TranspositionTable mTranspositionTable;
+
+	static std::array<std::array<double, 64>, 6> sPositionalScore;
 };
 
 #endif // AI_H

@@ -18,7 +18,7 @@ public:
 private:
 	Hashing();
 
-	static Hashing mInstance;
+	static Hashing sInstance;
 
 	u64 mTurn;
 

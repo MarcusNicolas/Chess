@@ -30,10 +30,10 @@ private:
 	u64 _generateRookMoves(u8, u64);
 	u64 _generateBishopMoves(u8, u64);
 
-	static MoveGenerator mInstance;
+	static MoveGenerator sInstance;
 
-	static std::array<u64, 8> mFiles;
-	static std::array<u64, 8> mRanks;
+	static std::array<u64, 8> sFiles;
+	static std::array<u64, 8> sRanks;
 
 	std::array<u64, 64> mKnightMoves;
 	std::array<u64, 64> mKingMoves;

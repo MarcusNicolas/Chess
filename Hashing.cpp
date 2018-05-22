@@ -1,10 +1,10 @@
 #include "Hashing.h"
 
-Hashing Hashing::mInstance;
+Hashing Hashing::sInstance;
 
 Hashing& Hashing::instance()
 {
-	return mInstance;
+	return sInstance;
 }
 
 u64 Hashing::hashPiece(u8 square, PieceType type, Player player) const

@@ -1,8 +1,8 @@
 #include "MoveGenerator.h"
 
-MoveGenerator MoveGenerator::mInstance;
+MoveGenerator MoveGenerator::sInstance;
 
-std::array<u64, 8> MoveGenerator::mFiles = { 0x0101010101010101,
+std::array<u64, 8> MoveGenerator::sFiles = { 0x0101010101010101,
                                              0x0202020202020202,
                                              0x0404040404040404,
                                              0x0808080808080808,
@@ -11,7 +11,7 @@ std::array<u64, 8> MoveGenerator::mFiles = { 0x0101010101010101,
                                              0x4040404040404040,
                                              0x8080808080808080 };
 
-std::array<u64, 8> MoveGenerator::mRanks = { 0x00000000000000FF,
+std::array<u64, 8> MoveGenerator::sRanks = { 0x00000000000000FF,
                                              0x000000000000FF00,
                                              0x0000000000FF0000,
                                              0x00000000FF000000,
@@ -22,17 +22,17 @@ std::array<u64, 8> MoveGenerator::mRanks = { 0x00000000000000FF,
 
 MoveGenerator& MoveGenerator::instance()
 {
-	return mInstance;
+	return sInstance;
 }
 
 u64 MoveGenerator::file(u8 file)
 {
-	return mFiles[file];
+	return sFiles[file];
 }
 
 u64 MoveGenerator::rank(u8 rank)
 {
-	return mRanks[rank];
+	return sRanks[rank];
 }
 
 u64 MoveGenerator::knightMoves(u8 square) const
@@ -62,23 +62,23 @@ u64 MoveGenerator::queenMoves(u8 square, u64 occupancy) const
 
 MoveGenerator::MoveGenerator()
 {
-	mFiles[FileA] = 0x0101010101010101;
-	mFiles[FileB] = 0x0202020202020202;
-	mFiles[FileC] = 0x0404040404040404;
-	mFiles[FileD] = 0x0808080808080808;
-	mFiles[FileE] = 0x1010101010101010;
-	mFiles[FileF] = 0x2020202020202020;
-	mFiles[FileG] = 0x4040404040404040;
-	mFiles[FileH] = 0x8080808080808080;
+	sFiles[FileA] = 0x0101010101010101;
+	sFiles[FileB] = 0x0202020202020202;
+	sFiles[FileC] = 0x0404040404040404;
+	sFiles[FileD] = 0x0808080808080808;
+	sFiles[FileE] = 0x1010101010101010;
+	sFiles[FileF] = 0x2020202020202020;
+	sFiles[FileG] = 0x4040404040404040;
+	sFiles[FileH] = 0x8080808080808080;
 
-	mRanks[Rank1] = 0x00000000000000FF;
-	mRanks[Rank2] = 0x000000000000FF00;
-	mRanks[Rank3] = 0x0000000000FF0000;
-	mRanks[Rank4] = 0x00000000FF000000;
-	mRanks[Rank5] = 0x000000FF00000000;
-	mRanks[Rank6] = 0x0000FF0000000000;
-	mRanks[Rank7] = 0x00FF000000000000;
-	mRanks[Rank8] = 0xFF00000000000000;
+	sRanks[Rank1] = 0x00000000000000FF;
+	sRanks[Rank2] = 0x000000000000FF00;
+	sRanks[Rank3] = 0x0000000000FF0000;
+	sRanks[Rank4] = 0x00000000FF000000;
+	sRanks[Rank5] = 0x000000FF00000000;
+	sRanks[Rank6] = 0x0000FF0000000000;
+	sRanks[Rank7] = 0x00FF000000000000;
+	sRanks[Rank8] = 0xFF00000000000000;
 
 	u64 shiftedIndex(0);
 

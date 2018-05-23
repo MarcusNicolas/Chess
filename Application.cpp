@@ -74,7 +74,7 @@ void Application::go()
 		hoveredSquare = (7 - (sf::Mouse::getPosition(mWindow).y / mTileSize)) * 8 + (sf::Mouse::getPosition(mWindow).x / mTileSize);;
 
 		if (game.activePlayer() == Black) {
-			game.makeMove(ai.bestMove(game, 5));
+			game.makeMove(ai.bestMove(game, 6));
 			moveSound.play(); // Play move sound
 		} else {
 			while (mWindow.pollEvent(event)) {

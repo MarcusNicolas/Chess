@@ -17,7 +17,7 @@ private:
 
 	TranspositionTable mTranspositionTable;
 
-	static std::array<std::array<double, 64>, 6> sPositionalScore;
+	std::array<std::array<double, 64>, 6> mPositionalScore;
 };
 
 #endif // AI_H

@@ -73,8 +73,8 @@ void Application::go()
 
 		hoveredSquare = (7 - (sf::Mouse::getPosition(mWindow).y / mTileSize)) * 8 + (sf::Mouse::getPosition(mWindow).x / mTileSize);;
 
-		if (game.activePlayer() == Black) {
-			game.makeMove(ai.bestMove(game, 6));
+		if (game.activePlayer() == White) {
+			game.makeMove(ai.bestMove(game, 5));
 			moveSound.play(); // Play move sound
 		} else {
 			while (mWindow.pollEvent(event)) {
@@ -185,7 +185,7 @@ void Application::go()
 
 
 			sprite.setPosition(f*mTileSize, (7 - r)*mTileSize);
-			sprite.setTexture(textures[bool(game.player(Black) & (1 << movingSquare))][pieceType]);
+			sprite.setTexture(textures[game.activePlayer()][pieceType]);
 			mWindow.draw(sprite);
 		}
 

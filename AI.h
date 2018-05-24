@@ -13,7 +13,7 @@ public:
 
 private:
 	double _evaluate(const Game&, Player) const;
-	std::pair<double, Move> _negamax(Game*, u8, double, double, Player);
+	std::pair<double, std::list<Move>> _negamax(Game*, u8, double, double, Player);
 
 	TranspositionTable mTranspositionTable;
 

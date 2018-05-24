@@ -1,62 +1,5 @@
 #include "AI.h"
 
-/*std::array<std::array<double, 64>, 6> AI::sPositionalScore =
-{   // Pawn
-	{ 0., 0., 0., 0., 0., 0., 0., 0.,
-	  .05, .10, .10, -.20, -.20, .10, .10, .05,
-	  .05, -.05, -.10, 0., 0., -.10, -.05, .05,
-	  0., 0., 0., .20, .20, 0., 0., 0.,
-	  .05, .05, .10, .25, .25, .10, .05, .05,
-	  .10, .10, .20, .30, .30, .20, .10, .10,
-	  .50, .50, .50, .50, .50, .50, .50, .50,
-	  0., 0., 0., 0., 0., 0., 0., 0.},
-	// Knight
-	{ -.50, -.40, -.30, -.30, -.30, -.30, -.40, -.50,
-	  -.40, -.20, 0., .05, .05, 0., -.20, -.40,
-	  -.30, .05, .10, .15, .15, .10, .05, -.30,
-	  -.30, 0., .15, .20, .20, .15, 0., -.30,
-	  -.30, 0., .15, .20, .20, .15, 0., -.30,
-	  -.30, .05, .10, .15, .15, .10, .05, -.30,
-	  -.40, -.20, 0., .05, .05, 0., -.20, -.40,
-	  -.50, -.40, -.30, -.30, -.30, -.30, -.40, -.50 },
-	// Bishop
-	{ 0., 0., 0., 0., 0., 0., 0., 0.,
-	  0., 0., 0., 0., 0., 0., 0., 0.,
-	  0., 0., 0., 0., 0., 0., 0., 0.,
-	  0., 0., 0., 0., 0., 0., 0., 0.,
-	  0., 0., 0., 0., 0., 0., 0., 0.,
-	  0., 0., 0., 0., 0., 0., 0., 0.,
-	  0., 0., 0., 0., 0., 0., 0., 0.,
-	  0., 0., 0., 0., 0., 0., 0., 0. },
-	// Rook
-	{ 0., 0., 0., 0., 0., 0., 0., 0.,
-	  0., 0., 0., 0., 0., 0., 0., 0.,
-	  0., 0., 0., 0., 0., 0., 0., 0.,
-	  0., 0., 0., 0., 0., 0., 0., 0.,
-	  0., 0., 0., 0., 0., 0., 0., 0.,
-	  0., 0., 0., 0., 0., 0., 0., 0.,
-	  0., 0., 0., 0., 0., 0., 0., 0.,
-	  0., 0., 0., 0., 0., 0., 0., 0. },
-	// Queen
-	{ 0., 0., 0., 0., 0., 0., 0., 0.,
-	  0., 0., 0., 0., 0., 0., 0., 0.,
-	  0., 0., 0., 0., 0., 0., 0., 0.,
-	  0., 0., 0., 0., 0., 0., 0., 0.,
-	  0., 0., 0., 0., 0., 0., 0., 0.,
-	  0., 0., 0., 0., 0., 0., 0., 0.,
-	  0., 0., 0., 0., 0., 0., 0., 0.,
-	  0., 0., 0., 0., 0., 0., 0., 0. },
-	// King
-	{ 0., 0., 0., 0., 0., 0., 0., 0.,
-	  0., 0., 0., 0., 0., 0., 0., 0.,
-	  0., 0., 0., 0., 0., 0., 0., 0., 
-	  0., 0., 0., 0., 0., 0., 0., 0., 
-	  0., 0., 0., 0., 0., 0., 0., 0., 
-	  0., 0., 0., 0., 0., 0., 0., 0., 
-	  0., 0., 0., 0., 0., 0., 0., 0., 
-	  0., 0., 0., 0., 0., 0., 0., 0. }
-};*/
-
 AI::AI() :
 	mTranspositionTable((u64(1) << 24) + 43) // To make it a prime number
 {
@@ -124,7 +67,14 @@ AI::AI() :
 Move AI::bestMove(const Game& game, u8 depth)
 {
 	Game root(game);
-	return _negamax(&root, depth, -INFINITY, INFINITY, root.activePlayer()).second;
+	std::list<Move> l = _negamax(&root, depth, -INFINITY, INFINITY, root.activePlayer()).second;
+	
+	std::cout << "\n\n";
+
+	for (Move m : l)
+		std::cout << "* " << int(m.from()) << " vers " << int(m.to()) << " (" << int(m.type()) << ")\n";
+
+	return l.front();
 }
 
 double AI::_evaluate(const Game& game, Player player) const
@@ -164,28 +114,25 @@ double AI::_evaluate(const Game& game, Player player) const
 	{
 	case WhiteWin:
 		if (player == White)
-			score += 1000.;
+			score = INFINITY;
 		else
-			score -= 1000.;
+			score = -INFINITY;
 
 		break;
 
 	case BlackWin:
 		if (player == Black)
-			score += 1000.;
+			score = INFINITY;
 		else
-			score -= 1000.;
+			score = -INFINITY;
 
 		break;
-
-	case Draw:
-		score -= 200.;
 	}
 
 	return score;
 }
 
-std::pair<double, Move> AI::_negamax(Game* game, u8 depth, double alpha, double beta, Player player)
+std::pair<double, std::list<Move>> AI::_negamax(Game* game, u8 depth, double alpha, double beta, Player player)
 {
 	/*if (depth == 0 || game->isOver())
 		return std::make_pair(_evaluate(*game, player), Move());
@@ -233,29 +180,35 @@ std::pair<double, Move> AI::_negamax(Game* game, u8 depth, double alpha, double 
 	return std::make_pair(score, bestMove);*/
 
 	if (depth == 0 || game->isOver())
-		return std::make_pair(_evaluate(*game, player), Move());
+		return std::make_pair(_evaluate(*game, player), std::list<Move>());
 
 	Move bestMove;
 	double score(-INFINITY);
+
+	std::list<Move> l;
 
 	double v(0);
 
 	for (const Move& move : game->possibleMoves()) {
 		game->makeMove(move);
-		v = -_negamax(game, depth - 1, -beta, -alpha, otherPlayer(player)).first;
+		std::pair<double, std::list<Move>> p = _negamax(game, depth - 1, -beta, -alpha, otherPlayer(player));
+		v = -p.first;
 		game->unmakeMove();
 
 		if (v > score) {
 			score = v;
 			bestMove = move;
+			l = p.second;
+
+			if (score > alpha) {
+				alpha = score;
+				
+				if (alpha >= beta)
+					break;
+			}
 		}
-
-		if (v > alpha)
-			alpha = v;
-
-		if (alpha > beta)
-			break;
 	}
 
-	return std::make_pair(score, bestMove);
+	l.push_front(bestMove);
+	return std::make_pair(score, l);
 }

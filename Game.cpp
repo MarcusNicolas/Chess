@@ -35,6 +35,7 @@ Game::Game() :
 	_refreshKingSquare(White);
 	_refreshKingSquare(Black);
 
+
 	// Piece type array
 
 	mPieceTypes.fill(-1);

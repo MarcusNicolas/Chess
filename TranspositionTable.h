@@ -6,7 +6,6 @@
 struct Result
 {
 	u64 hash;
-	NodeType type;
 
 	Move bestMove;
 	u8 depth;

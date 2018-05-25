@@ -73,12 +73,6 @@ enum MoveType {
 	QueenPromoCapture
 };
 
-enum NodeType {
-	PVNode,
-	AllNode,
-	CutNode
-};
-
 enum File {
 	FileA,
 	FileB,

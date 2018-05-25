@@ -75,10 +75,10 @@ Game::Game(const Game& game) :
 Game::~Game()
 {
 	while (mHistory.size()) {
-		if (mHistory.top().targetSquare != nullptr)
-			delete mHistory.top().targetSquare;
+		if (mHistory.back().targetSquare != nullptr)
+			delete mHistory.back().targetSquare;
 
-		mHistory.pop();
+		mHistory.pop_back();
 	}
 }
 
@@ -182,16 +182,19 @@ void Game::unmakeMove()
 
 u64 Game::_makeMove(const Move& move)
 {
+
+	u64 hash(Hashing::instance().hashTurn());
+
+	hash ^= Hashing::instance().hashCastlingRights(mCastlingRights);
+
+	if (mEnPassantSquare != -1)
+		hash ^= Hashing::instance().hashEnPassantFile(mEnPassantSquare % 8);
+
+
 	Undo undo({ move, nullptr, Pawn, mHalfmoveClock, mEnPassantSquare , mCastlingRights });
 
 	++mHalfmoveClock;
 	mEnPassantSquare = -1;
-
-	u64 hash(Hashing::instance().hashTurn());
-	
-	hash ^= Hashing::instance().hashCastlingRights(mCastlingRights);
-	hash ^= Hashing::instance().hashEnPassantFile(mEnPassantSquare % 8);
-	
 
 	// If castle
 	if (move.isCastle()) {
@@ -220,7 +223,6 @@ u64 Game::_makeMove(const Move& move)
 					break;
 				}
 			}
-
 
 			hash ^= _removePiece(*undo.targetSquare, undo.targetType, otherPlayer(mActivePlayer));
 			mHalfmoveClock = 0;
@@ -264,25 +266,27 @@ u64 Game::_makeMove(const Move& move)
 
 
 	hash ^= Hashing::instance().hashCastlingRights(mCastlingRights);
-	hash ^= Hashing::instance().hashEnPassantFile(mEnPassantSquare % 8);
+
+	if (mEnPassantSquare != -1)
+		hash ^= Hashing::instance().hashEnPassantFile(mEnPassantSquare % 8);
 
 
 	// End the turn
 	mActivePlayer = otherPlayer(mActivePlayer);
-	mHistory.push(undo);
+	mHistory.push_back(undo);
 
 	return hash;
 }
 
 void Game::_unmakeMove()
 {
-	Undo undo(mHistory.top());
+	Undo undo(mHistory.back());
 
 	mStatus = Ongoing;
 	mActivePlayer = otherPlayer(mActivePlayer);
 	mHalfmoveClock = undo.halfmoveClock;
 	mEnPassantSquare = undo.enPassantSquare;
-	mCastlingRights = undo.castlePerm;
+	mCastlingRights = undo.castlingRights;
 
 	// Unmake the move
 	_movePiece(undo.move.to(), undo.move.from(), mActivePlayer);
@@ -308,7 +312,7 @@ void Game::_unmakeMove()
 	if (undo.targetSquare != nullptr)
 		delete undo.targetSquare;
 
-	mHistory.pop();
+	mHistory.pop_back();
 }
 
 u64 Game::_movePiece(u8 from, u8 to, Player player)
@@ -389,6 +393,9 @@ void Game::_addPawnMoves(Player player)
 {
 	u64 pushMoves(0), captureMoves(0),
 		pawns(piecesOf(player, Pawn)),
+		enPassant(0);
+
+	if (mEnPassantSquare != u8(-1))
 		enPassant = u64(1) << mEnPassantSquare;
 
 	if (!pawns)

@@ -14,7 +14,7 @@ struct Undo
 
 	u8 halfmoveClock;
 	u8 enPassantSquare;
-	u8 castlePerm;
+	u8 castlingRights;
 };
 
 class Game
@@ -105,7 +105,7 @@ private:
 	Status mStatus;
 
 	std::stack<std::list<Move>> mMoves;
-	std::stack<Undo> mHistory;
+	std::vector<Undo> mHistory;
 	std::stack<u64> mHashs;
 };
 

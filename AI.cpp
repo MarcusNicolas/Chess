@@ -134,81 +134,85 @@ double AI::_evaluate(const Game& game, Player player) const
 
 std::pair<double, std::list<Move>> AI::_negamax(Game* game, u8 depth, double alpha, double beta, Player player)
 {
-	/*if (depth == 0 || game->isOver())
-		return std::make_pair(_evaluate(*game, player), Move());
-
-	Move bestMove;
-	double score(-INFINITY);
-
-	bool entryIsEmpty(false);
-	Result entry;
-
-	entry = mTranspositionTable.getEnty(game->hash(), entryIsEmpty);
-
-
-	if (!entryIsEmpty && depth <= entry.depth && game->hash() == entry.hash) {
-		bestMove = entry.bestMove;
-		score = playerSign(player) * entry.score;
-	} else {
-		double v(0);
-		NodeType type(AllNode);
-
-		for (const Move& move : game->possibleMoves()) {
-			game->makeMove(move);
-			v = -_negamax(game, depth - 1, -beta, -alpha, otherPlayer(player)).first;
-			game->unmakeMove();
-
-			if (v > score) {
-				score = v;
-				bestMove = move;
-			}
-
-			if (v > alpha) {
-				alpha = v;
-				type = PVNode;
-
-				if (alpha > beta) {
-					type = CutNode;
-					break;
-				}
-			}
-		}
-
-		mTranspositionTable.addEntry({ game->hash(), type, bestMove, depth, playerSign(player) * score });
-	}
-
-	return std::make_pair(score, bestMove);*/
-
 	if (depth == 0 || game->isOver())
-		return std::make_pair(_evaluate(*game, player), std::list<Move>());
+		return std::make_pair(_quiesce(game, alpha, beta, player), std::list<Move>());
+		
+		//return std::make_pair(_evaluate(*game, player), std::list<Move>());
 
 	Move bestMove;
 	double score(-INFINITY);
 
 	std::list<Move> l;
 
-	double v(0);
 
-	for (const Move& move : game->possibleMoves()) {
-		game->makeMove(move);
-		std::pair<double, std::list<Move>> p = _negamax(game, depth - 1, -beta, -alpha, otherPlayer(player));
-		v = -p.first;
-		game->unmakeMove();
+	bool entryIsEmpty(false);
+	Result entry;
 
-		if (v > score) {
-			score = v;
-			bestMove = move;
-			l = p.second;
+	entry = mTranspositionTable.getEnty(game->hash(), entryIsEmpty);
 
-			if (score > alpha) {
-				alpha = score;
-				
-				if (alpha >= beta)
-					break;
+	if (!entryIsEmpty && depth <= entry.depth && game->hash() == entry.hash) {
+		bestMove = entry.bestMove;
+		score = playerSign(player) * entry.score;
+	} else {
+		double v(0);
+
+		for (const Move& move : game->possibleMoves()) {
+			game->makeMove(move);
+			std::pair<double, std::list<Move>> p = _negamax(game, depth - 1, -beta, -alpha, otherPlayer(player));
+			v = -p.first;
+			game->unmakeMove();
+
+			if (v > score) {
+				score = v;
+				bestMove = move;
+				l = p.second;
+
+				if (score > alpha) {
+					alpha = score;
+
+					if (alpha >= beta)
+						break;
+				}
 			}
 		}
+
+
+		mTranspositionTable.addEntry({ game->hash(), bestMove, depth, playerSign(player) * score });
 	}
 
 	l.push_front(bestMove);
 	return std::make_pair(score, l);
+}
+
+double AI::_quiesce(Game* game, double alpha, double beta, Player player)
+{
+	double standPat(_evaluate(*game, player));
+
+	if (game->isOver())
+		return standPat;
+
+	if (standPat >= beta)
+		return beta;
+
+	if (alpha < standPat)
+		alpha = standPat;
+
+	double v(0);
+
+	for (const Move& move : game->possibleMoves()) {
+		if (!move.isCapture())
+			break;
+
+		game->makeMove(move);
+		v = -_quiesce(game, -beta, -alpha, otherPlayer(player));
+		game->unmakeMove();
+
+		if (v >= beta)
+			return beta;
+
+		if (v > alpha)
+			alpha = v;
+	}
+
+	return alpha;
 }

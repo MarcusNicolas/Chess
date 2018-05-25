@@ -14,7 +14,7 @@ public:
 private:
 	double _evaluate(const Game&, Player) const;
 	std::pair<double, std::list<Move>> _negamax(Game*, u8, double, double, Player);
-	double _quiesce(Game*, double, double, Player);
+	double _quiescenceSearch(Game*, double, double, Player);
 
 	TranspositionTable mTranspositionTable;
 

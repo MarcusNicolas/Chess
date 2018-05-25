@@ -38,6 +38,8 @@ public:
 
 	u64 hash() const;
 
+	std::string moveStr(const Move&) const;
+
 	const std::list<Move>& possibleMoves() const;
 
 	Status status() const;

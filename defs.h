@@ -111,4 +111,7 @@ u8 bsfReset(u64&);
 Player otherPlayer(Player);
 i8 playerSign(Player);
 
+std::string pieceStr(PieceType);
+std::string squareStr(u8);
+
 #endif // DEFS_H

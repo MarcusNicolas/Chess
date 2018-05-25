@@ -5,7 +5,7 @@ Application::Application(u8 tileSize) :
 {
 }
 
-void Application::go()
+void Application::go(Player humanPlayer, u8 depth)
 {
 	Game game;
 	u8 movingSquare(-1), hoveredSquare(-1), promoCol(0), promoDelta(0);
@@ -13,7 +13,9 @@ void Application::go()
 
 	AI ai;
 
-	bool isMoving(false), promoSelection(false);
+	bool isMoving(false), promoSelection(false), hasMoved(false);
+	std::string lastMoveStr;
+
 
 	std::map<u8, u8> promoIndex;
 	promoIndex[Queen] = 0;
@@ -67,15 +69,21 @@ void Application::go()
 
 
 	mWindow.create(sf::VideoMode(8 * mTileSize, 8 * mTileSize), "Jeu d'échecs");
+	std::cout << "\n\n";
+
 
 	while (mWindow.isOpen() && !game.isOver()) {
 		sf::Event event;
 
+		hasMoved = false;
 		hoveredSquare = (7 - (sf::Mouse::getPosition(mWindow).y / mTileSize)) * 8 + (sf::Mouse::getPosition(mWindow).x / mTileSize);;
 
-		if (game.activePlayer() == White) {
-			game.makeMove(ai.bestMove(game, 5));
-			moveSound.play(); // Play move sound
+		if (game.activePlayer() != humanPlayer) {
+			Move bestMove(ai.bestMove(game, depth));
+			
+			lastMoveStr = game.moveStr(bestMove);
+			game.makeMove(bestMove);
+			hasMoved = true;
 		} else {
 			while (mWindow.pollEvent(event)) {
 				u8 s = (7 - (event.mouseButton.y / mTileSize)) * 8 + (event.mouseButton.x / mTileSize);
@@ -95,11 +103,13 @@ void Application::go()
 									PieceType t(promoPiece[i]);
 									std::list<Move>::const_iterator it = std::find_if(moves.begin(), moves.end(), [t](const Move& m) { return m.promotionType() == t; });
 
+									lastMoveStr = game.moveStr(*it);
+
 									game.makeMove(*it);
 									promoSelection = false;
 									moves.clear();
 
-									moveSound.play(); // Play move sound
+									hasMoved = true;
 								}
 							}
 						} else {
@@ -136,9 +146,11 @@ void Application::go()
 							moves = tmp;
 						} else {
 							moves.clear();
-							game.makeMove(*it);
 
-							moveSound.play(); // Play move sound
+							lastMoveStr = game.moveStr(*it);
+
+							game.makeMove(*it);
+							hasMoved = true;
 						}
 
 					}
@@ -209,6 +221,11 @@ void Application::go()
 				mWindow.draw(tile);
 				mWindow.draw(sprite);
 			}
+		}
+
+		if (hasMoved) {
+			std::cout << lastMoveStr << "\n";
+			moveSound.play(); // Play move sound
 		}
 
 		mWindow.display();

@@ -30,3 +30,38 @@ i8 playerSign(Player player)
 {
 	return 1 - 2 * player;
 }
+
+std::string pieceStr(PieceType type)
+{
+	switch (type)
+	{
+	case Pawn:
+		return "";
+		break;
+
+	case Knight:
+		return "N";
+		break;
+
+	case Bishop:
+		return "B";
+		break;
+
+	case Rook:
+		return "R";
+		break;
+
+	case Queen:
+		return "Q";
+		break;
+
+	case King:
+		return "K";
+		break;
+	}
+}
+
+std::string squareStr(u8 s)
+{
+	return std::string(1, char('a' + (s%8))) + std::string(1, char('1' + (s/8)));
+}

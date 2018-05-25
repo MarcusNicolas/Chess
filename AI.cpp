@@ -68,11 +68,6 @@ Move AI::bestMove(const Game& game, u8 depth)
 {
 	Game root(game);
 	std::list<Move> l = _negamax(&root, depth, -INFINITY, INFINITY, root.activePlayer()).second;
-	
-	std::cout << "\n\n";
-
-	for (Move m : l)
-		std::cout << "* " << int(m.from()) << " vers " << int(m.to()) << " (" << int(m.type()) << ")\n";
 
 	return l.front();
 }
@@ -135,9 +130,7 @@ double AI::_evaluate(const Game& game, Player player) const
 std::pair<double, std::list<Move>> AI::_negamax(Game* game, u8 depth, double alpha, double beta, Player player)
 {
 	if (depth == 0 || game->isOver())
-		return std::make_pair(_quiesce(game, alpha, beta, player), std::list<Move>());
-		
-		//return std::make_pair(_evaluate(*game, player), std::list<Move>());
+		return std::make_pair(_quiescenceSearch(game, alpha, beta, player), std::list<Move>());
 
 	Move bestMove;
 	double score(-INFINITY);
@@ -184,7 +177,7 @@ std::pair<double, std::list<Move>> AI::_negamax(Game* game, u8 depth, double alp
 	return std::make_pair(score, l);
 }
 
-double AI::_quiesce(Game* game, double alpha, double beta, Player player)
+double AI::_quiescenceSearch(Game* game, double alpha, double beta, Player player)
 {
 	double standPat(_evaluate(*game, player));
 
@@ -204,7 +197,7 @@ double AI::_quiesce(Game* game, double alpha, double beta, Player player)
 			break;
 
 		game->makeMove(move);
-		v = -_quiesce(game, -beta, -alpha, otherPlayer(player));
+		v = -_quiescenceSearch(game, -beta, -alpha, otherPlayer(player));
 		game->unmakeMove();
 
 		if (v >= beta)

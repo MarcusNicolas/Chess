@@ -5,7 +5,7 @@ Application::Application(u8 tileSize) :
 {
 }
 
-void Application::go(Player humanPlayer, u8 depth)
+void Application::go(Player humanPlayer, u64 thinkingTime)
 {
 	Game game;
 	u8 movingSquare(-1), hoveredSquare(-1), promoCol(0), promoDelta(0);
@@ -79,9 +79,8 @@ void Application::go(Player humanPlayer, u8 depth)
 		hoveredSquare = (7 - (sf::Mouse::getPosition(mWindow).y / mTileSize)) * 8 + (sf::Mouse::getPosition(mWindow).x / mTileSize);;
 
 		if (game.activePlayer() != humanPlayer) {
-			Move bestMove(ai.bestMove(game, depth));
+			Move bestMove(ai.bestMove(game, thinkingTime));
 			
-			lastMoveStr = game.moveStr(bestMove);
 			game.makeMove(bestMove);
 			hasMoved = true;
 		} else {
@@ -102,8 +101,6 @@ void Application::go(Player humanPlayer, u8 depth)
 								if (i >= 0 && i <= 3) {
 									PieceType t(promoPiece[i]);
 									std::list<Move>::const_iterator it = std::find_if(moves.begin(), moves.end(), [t](const Move& m) { return m.promotionType() == t; });
-
-									lastMoveStr = game.moveStr(*it);
 
 									game.makeMove(*it);
 									promoSelection = false;
@@ -146,8 +143,6 @@ void Application::go(Player humanPlayer, u8 depth)
 							moves = tmp;
 						} else {
 							moves.clear();
-
-							lastMoveStr = game.moveStr(*it);
 
 							game.makeMove(*it);
 							hasMoved = true;
@@ -223,10 +218,8 @@ void Application::go(Player humanPlayer, u8 depth)
 			}
 		}
 
-		if (hasMoved) {
-			std::cout << lastMoveStr << "\n";
+		if (hasMoved)
 			moveSound.play(); // Play move sound
-		}
 
 		mWindow.display();
 	}

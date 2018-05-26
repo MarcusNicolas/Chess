@@ -9,7 +9,7 @@ class Application
 public:
 	Application(u8);
 
-	void go(Player, u8);
+	void go(Player, u64);
 
 private:
 	const u8 mTileSize;

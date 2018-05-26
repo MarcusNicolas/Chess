@@ -9,12 +9,14 @@ class AI
 public:
 	AI();
 
-	Move bestMove(const Game&, u8);
+	Move bestMove(const Game&, u64);
 
 private:
+	static std::array<double, 6> sPiecesValues;
+
 	double _evaluate(const Game&, Player) const;
-	std::pair<double, std::list<Move>> _negamax(Game*, u8, double, double, Player);
-	double _quiescenceSearch(Game*, double, double, Player);
+	std::pair<double, std::list<Move>> _negamax(Game*, u8, double, double, Player, u64&, bool&, const std::chrono::steady_clock::time_point&, u64 duration);
+	double _quiescenceSearch(Game*, double, double, Player, u64&);
 
 	TranspositionTable mTranspositionTable;
 

@@ -7,26 +7,39 @@ TranspositionTable::TranspositionTable(u32 size) :
 
 TranspositionTable::~TranspositionTable()
 {
-	for (Result* r : mTable)
+	for (Entry* r : mTable)
 		if (r != nullptr)
 			delete r;
 }
 
-void TranspositionTable::addEntry(const Result& r)
+void TranspositionTable::tick()
+{
+	for (Entry* r : mTable)
+		if (r != nullptr)
+			r->isAncient = true;
+}
+
+void TranspositionTable::addEntry(const Entry& r)
 {
 	u32 i(r.hash % mTable.size());
 
-	if (mTable[i] == nullptr || r.depth > mTable[i]->depth)
-		mTable[i] = new Result(r);
+	if (mTable[i] == nullptr)
+		mTable[i] = new Entry(r);
+	else if (mTable[i]->isAncient || r.depth > mTable[i]->depth) {
+		delete mTable[i];
+		mTable[i] = new Entry(r);
+	}
 }
 
-const Result& TranspositionTable::getEnty(u64 hash, bool& isEmpty) const
+const Entry& TranspositionTable::getEnty(u64 hash, bool& isEmpty) const
 {
 	u32 i(hash % mTable.size());
 	isEmpty = mTable[i] == nullptr;
 
 	if (isEmpty)
-		return { 0, Move(0, 0, QuietMove), 0, 0 };
-	else
-		return *mTable[i];
+		return Entry();
+
+	mTable[i]->isAncient = false;
+	return *mTable[i];
+
 }

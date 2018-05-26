@@ -13,6 +13,8 @@
 #include <exception>
 #include <stack>
 
+#include <chrono>
+
 #include <string>
 #include <iostream>
 
@@ -32,7 +34,7 @@ typedef unsigned short u16;
 typedef unsigned long u32;
 typedef unsigned long long u64;
 
-#define INFINITY 100000.
+#define INFINITY 1000000.
 
 
 enum Player {
@@ -73,6 +75,12 @@ enum MoveType {
 	QueenPromoCapture
 };
 
+enum NodeType {
+	PVNode,
+	CutNode,
+	AllNode
+};
+
 enum File {
 	FileA,
 	FileB,
@@ -110,6 +118,8 @@ u8 bsfReset(u64&);
 
 Player otherPlayer(Player);
 i8 playerSign(Player);
+
+
 
 std::string pieceStr(PieceType);
 std::string squareStr(u8);

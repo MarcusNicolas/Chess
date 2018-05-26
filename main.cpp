@@ -19,12 +19,12 @@ int main()
 		else
 			player = Black;
 
-		std::cout << "\nNegamax depth ?\n";
+		std::cout << "\nThinking time ?\n";
 
-		while (std::stoi(s) <= 0)
+		while (std::stof(s) <= 0)
 			std::cin >> s;
 
-		app.go(player, std::stoi(s));
+		app.go(player, std::stof(s) * 1000);
 	}
 	catch (const std::exception& e) {
 		std::cout << "\n\n/!\\ Exception : " << e.what() << "\n\n\n";

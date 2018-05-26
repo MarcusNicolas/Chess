@@ -109,6 +109,8 @@ private:
 	std::stack<std::list<Move>> mMoves;
 	std::vector<Undo> mHistory;
 	std::stack<u64> mHashs;
+
+	std::map<u64, u8> mHashsVisits;
 };
 
 

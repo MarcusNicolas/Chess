@@ -31,7 +31,6 @@ Game::Game() :
 	mPieces[Queen]  = 0x0800000000000008;
 	mPieces[King]   = 0x1000000000000010;
 
-
 	_refreshKingSquare(White);
 	_refreshKingSquare(Black);
 
@@ -54,6 +53,7 @@ Game::Game() :
 	_generateMoves();
 
 	mHashs.push(0);
+	mHashsVisits[mHashs.top()] += 1;
 }
 
 Game::Game(const Game& game) :
@@ -172,10 +172,12 @@ void Game::makeMove(const Move& move)
 		return;
 
 	mHashs.push(hash() ^ _makeMove(move));
+	mHashsVisits[mHashs.top()] += 1;
+
 	_generateMoves();
 
 
-	// If no moves are available, then game is finished
+	// If no moves are available, then the game is over
 	if (!mMoves.top().size()) {
 		if (isKingInCheck(mActivePlayer))
 			mStatus = Status(1 - mActivePlayer); // Checkmate
@@ -183,7 +185,8 @@ void Game::makeMove(const Move& move)
 			mStatus = Draw; // Stalemate
 	}
 
-	if (mHalfmoveClock > 100)
+	// Fifty-move rule or threefold repetition
+	if (mHalfmoveClock == 100 || mHashsVisits[mHashs.top()] == 3)
 		mStatus = Draw;
 }
 
@@ -191,6 +194,11 @@ void Game::unmakeMove()
 {
 	if (!mHistory.size())
 		return;
+
+	mHashsVisits[mHashs.top()] -= 1;
+
+	if (!mHashsVisits[mHashs.top()])
+		mHashsVisits.erase(mHashs.top());
 
 	_unmakeMove();
 	mMoves.pop();
@@ -564,10 +572,10 @@ bool Game::_isAttacked(u8 square, Player player) const
 		right = (u64(1) << (square + 1)) & ~MoveGenerator::file(FileA);
 
 	return MoveGenerator::instance().rookMoves(square, occupancy()) & (piecesOf(by, Rook) | piecesOf(by, Queen)) ||
-		MoveGenerator::instance().bishopMoves(square, occupancy()) & (piecesOf(by, Bishop) | piecesOf(by, Queen)) ||
-		MoveGenerator::instance().knightMoves(square) & piecesOf(by, Knight) ||
-		MoveGenerator::instance().kingMoves(square) & piecesOf(by, King) ||
-		(circularShift(left | right, sPawnShift[player]) & piecesOf(by, Pawn));
+		   MoveGenerator::instance().bishopMoves(square, occupancy()) & (piecesOf(by, Bishop) | piecesOf(by, Queen)) ||
+		   MoveGenerator::instance().knightMoves(square) & piecesOf(by, Knight) ||
+		   MoveGenerator::instance().kingMoves(square) & piecesOf(by, King) ||
+		   (circularShift(left | right, sPawnShift[player]) & piecesOf(by, Pawn));
 }
 
 bool Game::_canCastleKingSide(Player player) const

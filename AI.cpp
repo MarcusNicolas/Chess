@@ -1,5 +1,7 @@
 #include "AI.h"
 
+std::array<double, 6> AI::sPiecesValues = { 1, 3.2, 3.3, 5, 9, 1000 };
+
 AI::AI() :
 	mTranspositionTable((u64(1) << 24) + 43) // To make it a prime number
 {
@@ -54,33 +56,50 @@ AI::AI() :
 		  -.20, -.10, -.10, -.05, -.05, -.10, -.10, -.20 };
 
 	mPositionalScore[King] =
-	{ 0., 0., 0., 0., 0., 0., 0., 0.,
-	  0., 0., 0., 0., 0., 0., 0., 0.,
-	  0., 0., 0., 0., 0., 0., 0., 0., 
-	  0., 0., 0., 0., 0., 0., 0., 0., 
-	  0., 0., 0., 0., 0., 0., 0., 0., 
-	  0., 0., 0., 0., 0., 0., 0., 0., 
-	  0., 0., 0., 0., 0., 0., 0., 0., 
-	  0., 0., 0., 0., 0., 0., 0., 0., };
+		{ 0., 0., 0., 0., 0., 0., 0., 0.,
+		  0., 0., 0., 0., 0., 0., 0., 0.,
+		  0., 0., 0., 0., 0., 0., 0., 0., 
+		  0., 0., 0., 0., 0., 0., 0., 0., 
+		  0., 0., 0., 0., 0., 0., 0., 0., 
+		  0., 0., 0., 0., 0., 0., 0., 0., 
+		  0., 0., 0., 0., 0., 0., 0., 0., 
+		  0., 0., 0., 0., 0., 0., 0., 0., };
 }
 
-Move AI::bestMove(const Game& game, u8 depth)
+Move AI::bestMove(const Game& game, u64 thinkingTime)
 {
-	Game root(game);
-	std::list<Move> l = _negamax(&root, depth, -INFINITY, INFINITY, root.activePlayer()).second;
+	// Iterative deepening
 
-	return l.front();
+	u64 nodes(0);
+	Game root(game);
+
+	u8 depth(1);
+	bool interrupted(false);
+
+	std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
+
+	Move move;
+	std::list<Move> movesSequence;
+
+
+	while (!interrupted) {
+		movesSequence = _negamax(&root, depth, -INFINITY, INFINITY, root.activePlayer(), nodes, interrupted, begin, thinkingTime).second;
+
+		if (!interrupted) {
+			move = movesSequence.front();
+			++depth;
+		}
+	}
+
+	std::cout << int(double(nodes) / double(thinkingTime)) << " kN/s\n";
+	mTranspositionTable.tick();
+
+	return move;
 }
 
 double AI::_evaluate(const Game& game, Player player) const
 {
-	double score(0.);
-	
-	score += 1.0 * (popcount(game.piecesOf(player, Pawn))   - popcount(game.piecesOf(otherPlayer(player), Pawn)));
-	score += 3.2 * (popcount(game.piecesOf(player, Knight)) - popcount(game.piecesOf(otherPlayer(player), Knight)));
-	score += 3.3 * (popcount(game.piecesOf(player, Bishop)) - popcount(game.piecesOf(otherPlayer(player), Bishop)));
-	score += 5.0 * (popcount(game.piecesOf(player, Rook))   - popcount(game.piecesOf(otherPlayer(player), Rook)));
-	score += 9.0 * (popcount(game.piecesOf(player, Queen))  - popcount(game.piecesOf(otherPlayer(player), Queen)));
+	double score(0);
 
 	// Bishop pair
 	score += 0.3 * ((popcount(game.piecesOf(player, Bishop)) == 2) - (popcount(game.piecesOf(otherPlayer(player), Bishop)) == 2));
@@ -90,6 +109,8 @@ double AI::_evaluate(const Game& game, Player player) const
 
 		for (u8 piece(0); piece < 6; ++piece) {
 			u64 bitboard(game.piecesOf(Player(i), PieceType(piece)));
+
+			posScore += sPiecesValues[piece] * popcount(game.piecesOf(Player(i), PieceType(piece)));
 
 			while (bitboard) {
 				u8 s = bsfReset(bitboard);
@@ -109,37 +130,48 @@ double AI::_evaluate(const Game& game, Player player) const
 	{
 	case WhiteWin:
 		if (player == White)
-			score = INFINITY;
+			score = 1000.;
 		else
-			score = -INFINITY;
+			score = -1000.;
 
 		break;
 
 	case BlackWin:
 		if (player == Black)
-			score = INFINITY;
+			score = 1000.;
 		else
-			score = -INFINITY;
+			score = -1000.;
 
 		break;
+
+	case Draw:
+		score *= -1;
 	}
 
 	return score;
 }
 
-std::pair<double, std::list<Move>> AI::_negamax(Game* game, u8 depth, double alpha, double beta, Player player)
+std::pair<double, std::list<Move>> AI::_negamax(Game* game, u8 depth, double alpha, double beta, Player player, u64& nodes, bool& interrupted, const std::chrono::steady_clock::time_point& begin, u64 thinkingTime)
 {
+	std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
+
+	if (std::chrono::duration_cast<std::chrono::milliseconds>(now - begin).count() > thinkingTime) {
+		interrupted = true;
+		return std::make_pair(-INFINITY, std::list<Move>());
+	}
+
+
 	if (depth == 0 || game->isOver())
-		return std::make_pair(_quiescenceSearch(game, alpha, beta, player), std::list<Move>());
+		return std::make_pair(_quiescenceSearch(game, alpha, beta, player, nodes), std::list<Move>());
 
 	Move bestMove;
 	double score(-INFINITY);
 
-	std::list<Move> l;
+	std::list<Move> moveSequence;
 
 
 	bool entryIsEmpty(false);
-	Result entry;
+	Entry entry;
 
 	entry = mTranspositionTable.getEnty(game->hash(), entryIsEmpty);
 
@@ -151,14 +183,14 @@ std::pair<double, std::list<Move>> AI::_negamax(Game* game, u8 depth, double alp
 
 		for (const Move& move : game->possibleMoves()) {
 			game->makeMove(move);
-			std::pair<double, std::list<Move>> p = _negamax(game, depth - 1, -beta, -alpha, otherPlayer(player));
+			std::pair<double, std::list<Move>> p = _negamax(game, depth - 1, -beta, -alpha, otherPlayer(player), nodes, interrupted, begin, thinkingTime);
 			v = -p.first;
 			game->unmakeMove();
 
 			if (v > score) {
 				score = v;
 				bestMove = move;
-				l = p.second;
+				moveSequence = p.second;
 
 				if (score > alpha) {
 					alpha = score;
@@ -170,14 +202,15 @@ std::pair<double, std::list<Move>> AI::_negamax(Game* game, u8 depth, double alp
 		}
 
 
-		mTranspositionTable.addEntry({ game->hash(), bestMove, depth, playerSign(player) * score });
+		mTranspositionTable.addEntry(Entry(game->hash(), bestMove, depth, playerSign(player) * score, false));
+		++nodes;
 	}
 
-	l.push_front(bestMove);
-	return std::make_pair(score, l);
+	moveSequence.push_front(bestMove);
+	return std::make_pair(score, moveSequence);
 }
 
-double AI::_quiescenceSearch(Game* game, double alpha, double beta, Player player)
+double AI::_quiescenceSearch(Game* game, double alpha, double beta, Player player, u64& nodes)
 {
 	double standPat(_evaluate(*game, player));
 
@@ -197,7 +230,7 @@ double AI::_quiescenceSearch(Game* game, double alpha, double beta, Player playe
 			break;
 
 		game->makeMove(move);
-		v = -_quiescenceSearch(game, -beta, -alpha, otherPlayer(player));
+		v = -_quiescenceSearch(game, -beta, -alpha, otherPlayer(player), nodes);
 		game->unmakeMove();
 
 		if (v >= beta)
@@ -206,6 +239,8 @@ double AI::_quiescenceSearch(Game* game, double alpha, double beta, Player playe
 		if (v > alpha)
 			alpha = v;
 	}
+
+	++nodes;
 
 	return alpha;
 }

@@ -127,25 +127,6 @@ u64 Game::hash() const
 	return mHashs.top();
 }
 
-std::string Game::moveStr(const Move& m) const
-{
-	switch (m.type())
-	{
-	case KingCastle:
-		return "O-O";
-		break;
-
-	case QueenCastle:
-		return "O-O-O";
-		break;
-
-	default:
-		PieceType type = PieceType(mPieceTypes[m.from()]);
-		return pieceStr(type) + squareStr(m.from()) + " - " + pieceStr(type) + squareStr(m.to());
-		break;
-	}
-}
-
 const std::list<Move>& Game::possibleMoves() const
 {
 	return mMoves.top();

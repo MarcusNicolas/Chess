@@ -92,6 +92,8 @@ Move AI::bestMove(const Game& game, u64 thinkingTime)
 	}
 
 	std::cout << int(double(nodes) / double(thinkingTime)) << " kN/s\n";
+	std::cout << int(depth - 1) << "\n\n";
+
 	mTranspositionTable.tick();
 
 	return move;
@@ -161,6 +163,8 @@ std::pair<double, std::list<Move>> AI::_negamax(Game* game, u8 depth, double alp
 	}
 
 
+	++nodes;
+
 	if (depth == 0 || game->isOver())
 		return std::make_pair(_quiescenceSearch(game, alpha, beta, player, nodes), std::list<Move>());
 
@@ -173,15 +177,45 @@ std::pair<double, std::list<Move>> AI::_negamax(Game* game, u8 depth, double alp
 	bool entryIsEmpty(false);
 	Entry entry;
 
+	bool doSearch(true);
+
+	std::list<Move> possibleMoves(game->possibleMoves());
+
+
 	entry = mTranspositionTable.getEnty(game->hash(), entryIsEmpty);
 
-	if (!entryIsEmpty && depth <= entry.depth && game->hash() == entry.hash) {
-		bestMove = entry.bestMove;
-		score = playerSign(player) * entry.score;
-	} else {
-		double v(0);
+	// We matched with an entry in our transposition table
+	if (!entryIsEmpty && game->hash() == entry.hash) {
+		if (entry.depth >= depth) {
+			switch (entry.type)
+			{
+			case AllNode:
+				if (beta > entry.score)
+					beta = entry.score;
+				break;
 
-		for (const Move& move : game->possibleMoves()) {
+			case CutNode:
+				if (alpha < entry.score)
+					alpha = entry.score;
+				break;
+			}
+
+			if (entry.type == PVNode || alpha >= beta) {
+				bestMove = entry.bestMove;
+				score = playerSign(player) * entry.score;
+				doSearch = false;
+			}
+		}
+
+		if (doSearch)
+			std::swap_ranges(possibleMoves.begin(), ++possibleMoves.begin(), std::find(possibleMoves.begin(), possibleMoves.end(), entry.bestMove));
+	}
+	
+	if (doSearch) {
+		double v(0);
+		NodeType type(AllNode);
+
+		for (const Move& move : possibleMoves) {
 			game->makeMove(move);
 			std::pair<double, std::list<Move>> p = _negamax(game, depth - 1, -beta, -alpha, otherPlayer(player), nodes, interrupted, begin, thinkingTime);
 			v = -p.first;
@@ -194,20 +228,22 @@ std::pair<double, std::list<Move>> AI::_negamax(Game* game, u8 depth, double alp
 
 				if (score > alpha) {
 					alpha = score;
+					type = PVNode;
 
-					if (alpha >= beta)
+					if (alpha >= beta) {
+						type = CutNode;
 						break;
+					}
 				}
 			}
 		}
 
 
-		mTranspositionTable.addEntry(Entry(game->hash(), bestMove, depth, playerSign(player) * score, false));
-		++nodes;
+		mTranspositionTable.addEntry(Entry(game->hash(), type, bestMove, depth, playerSign(player) * score, false));
 	}
 
 	moveSequence.push_front(bestMove);
-	return std::make_pair(score, moveSequence);
+	return std::make_pair(score, moveSequence); // BUG
 }
 
 double AI::_quiescenceSearch(Game* game, double alpha, double beta, Player player, u64& nodes)

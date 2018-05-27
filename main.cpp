@@ -19,7 +19,7 @@ int main()
 		else
 			player = Black;
 
-		std::cout << "\nThinking time ?\n";
+		std::cout << "\nThinking time (in s) ?\n";
 
 		while (std::stof(s) <= 0)
 			std::cin >> s;

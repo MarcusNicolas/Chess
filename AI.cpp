@@ -79,16 +79,17 @@ Move AI::bestMove(const Game& game, u64 thinkingTime)
 	std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
 
 	Move move;
-	std::list<Move> movesSequence;
+	std::list<Move> l, movesSequence;
 
 	mKillerMoves.clear();
 
 
 	while (!interrupted) {
 		mKillerMoves.push_back({ Move(), Move() });
-		movesSequence = _pvs(&root, depth, -INFINITY, INFINITY, root.activePlayer(), nodes, interrupted, begin, thinkingTime).second;
+		l = _pvs(&root, depth, 0, -INFINITY, INFINITY, root.activePlayer(), nodes, interrupted, begin, thinkingTime).second;
 
 		if (!interrupted) {
+			movesSequence = l;
 			move = movesSequence.front();
 			++depth;
 		}
@@ -97,6 +98,14 @@ Move AI::bestMove(const Game& game, u64 thinkingTime)
 	std::cout << "Search speed: " << int(double(nodes) / double(thinkingTime)) << " kN/s\n";
 	std::cout << "Depth: " << int(depth - 1) << "\n";
 	std::cout << "TT filling rate : " << 100 * double(mTranspositionTable.entries()) / double(mTranspositionTable.size()) << "%\n\n";
+
+	std::cout << "Moves sequence :\n";
+
+	for (const Move& move : movesSequence) {
+		std::cout << "   * " << int(move.from()) << " to " << int(move.to()) << "\n";
+	}
+
+	std::cout << "\n\n";
 
 
 	mTranspositionTable.tick();
@@ -158,11 +167,12 @@ double AI::_evaluate(const Game& game, Player player) const
 }
 
 // Principal variation search
-std::pair<double, std::list<Move>> AI::_pvs(Game* game, u8 depth, double alpha, double beta, Player player, u64& nodes, bool& interrupted, const std::chrono::steady_clock::time_point& begin, u64 thinkingTime)
+std::pair<double, std::list<Move>> AI::_pvs(Game* game, u8 depth, u8 ply, double alpha, double beta, Player player, u64& nodes, bool& interrupted, const std::chrono::steady_clock::time_point& begin, u64 thinkingTime)
 {
 	std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
 
-	if (std::chrono::duration_cast<std::chrono::milliseconds>(now - begin).count() > thinkingTime) {
+
+	if (interrupted || (nodes % 10000 == 0 && std::chrono::duration_cast<std::chrono::milliseconds>(now - begin).count() > thinkingTime)) {
 		interrupted = true;
 		return std::make_pair(-INFINITY, std::list<Move>());
 	}
@@ -191,31 +201,35 @@ std::pair<double, std::list<Move>> AI::_pvs(Game* game, u8 depth, double alpha, 
 
 	// We matched with an entry in our transposition table
 	if (!isEmpty && game->hash() == entry.hash) {
-		if (entry.depth >= depth) {
-			switch (entry.type) {
-			case AllNode:
-				if (beta > entry.score)
-					beta = entry.score;
-				break;
+		std::list<Move>::const_iterator it = std::find(possibleMoves.begin(), possibleMoves.end(), entry.bestMove);
 
-			case CutNode:
-				if (alpha < entry.score)
-					alpha = entry.score;
-				break;
+		// If the move is not in the possible moves list : collision
+		if (it != possibleMoves.end()) {
+			if (entry.depth >= depth) {
+				switch (entry.type) {
+				case AllNode:
+					if (beta > entry.score)
+						beta = entry.score;
+					break;
+
+				case CutNode:
+					if (alpha < entry.score)
+						alpha = entry.score;
+					break;
+				}
+
+				if (entry.type == PVNode || alpha >= beta) {
+					bestMove = entry.bestMove;
+					movesSequence = entry.movesSequence;
+					score = playerSign(player) * entry.score;
+					doSearch = false;
+				}
 			}
 
-			if (entry.type == PVNode || alpha >= beta) {
-				bestMove = entry.bestMove;
-				score = playerSign(player) * entry.score;
-				doSearch = false;
+			if (doSearch) {
+				sortedMoves.push_back(std::make_pair(*it, INFINITY));
+				possibleMoves.erase(it);
 			}
-		}
-
-		if (doSearch) {
-			std::list<Move>::iterator it = std::find(possibleMoves.begin(), possibleMoves.end(), entry.bestMove);
-
-			sortedMoves.push_back(std::make_pair(*it, INFINITY));
-			possibleMoves.erase(it);
 		}
 	}
 
@@ -239,16 +253,16 @@ std::pair<double, std::list<Move>> AI::_pvs(Game* game, u8 depth, double alpha, 
 
 			priority += 100 * sPiecesValues[captured] - 10 * sPiecesValues[capturing];
 			priority += 1000 * hasCapturedLastMovedPiece;
-		} else if (move == mKillerMoves[depth][0])
+		} else if (move == mKillerMoves[ply][0])
 			priority += 50;
-		else if (move == mKillerMoves[depth][1])
+		else if (move == mKillerMoves[ply][1])
 			priority += 45;
 
 		sortedMoves.push_back(std::make_pair(move, priority));
 	}
 
 	sortedMoves.sort([](const std::pair<Move, double>& p1, const std::pair<Move, double>& p2) { return p1.second > p2.second; });
-
+		
 
 	// Search
 	if (doSearch) {
@@ -264,17 +278,18 @@ std::pair<double, std::list<Move>> AI::_pvs(Game* game, u8 depth, double alpha, 
 			game->makeMove(move.first);
 
 			if (isFirstMove) {
-				pair = _pvs(game, depth - 1, -beta, -alpha, otherPlayer(player), nodes, interrupted, begin, thinkingTime);
+				pair = _pvs(game, depth - 1, ply + 1, -beta, -alpha, otherPlayer(player), nodes, interrupted, begin, thinkingTime);
 				value = -pair.first;
 			} else {
-				pair = _pvs(game, depth - 1, -alpha - 1, -alpha, otherPlayer(player), nodes, interrupted, begin, thinkingTime);
+				pair = _pvs(game, depth - 1, ply + 1, -alpha - 1, -alpha, otherPlayer(player), nodes, interrupted, begin, thinkingTime);
 				value = -pair.first;
 
 				if (alpha < value < beta) {
-					pair = _pvs(game, depth - 1, -beta, -alpha, otherPlayer(player), nodes, interrupted, begin, thinkingTime);
+					pair = _pvs(game, depth - 1, ply + 1, -beta, -alpha, otherPlayer(player), nodes, interrupted, begin, thinkingTime);
 					value = -pair.first;
 				}
 			}
+
 
 			game->unmakeMove();
 
@@ -291,9 +306,9 @@ std::pair<double, std::list<Move>> AI::_pvs(Game* game, u8 depth, double alpha, 
 
 					if (alpha >= beta) {
 						// We store the move that produced the cutoff as a killer move, if it is neither a capture nor a hash move
-						if (!move.first.isCapture() && !(!isEmpty && isFirstMove) && move.first != mKillerMoves[depth][0]) {
-							mKillerMoves[depth][1] = mKillerMoves[depth][0];
-							mKillerMoves[depth][0] = move.first;
+						if (!move.first.isCapture() && !(!isEmpty && isFirstMove) && move.first != mKillerMoves[ply][0]) {
+							mKillerMoves[ply][1] = mKillerMoves[ply][0];
+							mKillerMoves[ply][0] = move.first;
 						}
 
 						type = CutNode;
@@ -305,11 +320,10 @@ std::pair<double, std::list<Move>> AI::_pvs(Game* game, u8 depth, double alpha, 
 			isFirstMove = false;
 		}
 
-
-		mTranspositionTable.addEntry(Entry(game->hash(), type, bestMove, depth, playerSign(player) * score, false));
+		movesSequence.push_front(bestMove);
+		mTranspositionTable.addEntry(Entry(game->hash(), type, bestMove, movesSequence, depth, playerSign(player) * score, false));
 	}
 
-	movesSequence.push_front(bestMove);
 	return std::make_pair(score, movesSequence);
 }
 

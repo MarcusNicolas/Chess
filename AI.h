@@ -15,7 +15,7 @@ private:
 	static std::array<double, 6> sPiecesValues;
 
 	double _evaluate(const Game&, Player) const;
-	std::pair<double, std::list<Move>> _pvs(Game*, u8, double, double, Player, u64&, bool&, const std::chrono::steady_clock::time_point&, u64 duration);
+	std::pair<double, std::list<Move>> _pvs(Game*, u8, u8, double, double, Player, u64&, bool&, const std::chrono::steady_clock::time_point&, u64 duration);
 	double _quiescenceSearch(Game*, double, double, Player, u64&);
 
 	TranspositionTable mTranspositionTable;

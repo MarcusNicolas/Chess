@@ -68,6 +68,9 @@ AI::AI(size_t transpositionTableSize) :
 
 Move AI::bestMove(const Game& game, u64 thinkingTime)
 {
+	std::cout << "Eval w : " << _evaluate(game, White) << "\n";
+	std::cout << "Eval b : " << _evaluate(game, Black) << "\n\n";
+
 	// Iterative deepening
 
 	u64 nodes(0);
@@ -118,10 +121,10 @@ double AI::_evaluate(const Game& game, Player player) const
 	double score(0);
 
 	// Bishop pair
-	score += 0.3 * ((popcount(game.piecesOf(player, Bishop)) == 2) - (popcount(game.piecesOf(otherPlayer(player), Bishop)) == 2));
+	score += .3 * ((popcount(game.piecesOf(player, Bishop)) == 2) - (popcount(game.piecesOf(otherPlayer(player), Bishop)) == 2));
 
 	for (u8 i(0); i < 2; ++i) {
-		double posScore(0.);
+		double posScore(0);
 
 		for (u8 piece(0); piece < 6; ++piece) {
 			u64 bitboard(game.piecesOf(Player(i), PieceType(piece)));
@@ -145,17 +148,17 @@ double AI::_evaluate(const Game& game, Player player) const
 	switch (game.status()) {
 	case WhiteWin:
 		if (player == White)
-			score = 1000.;
+			score = 1000;
 		else
-			score = -1000.;
+			score = -1000;
 
 		break;
 
 	case BlackWin:
 		if (player == Black)
-			score = 1000.;
+			score = 1000;
 		else
-			score = -1000.;
+			score = -1000;
 
 		break;
 
@@ -172,7 +175,8 @@ std::pair<double, std::list<Move>> AI::_pvs(Game* game, u8 depth, u8 ply, double
 	std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
 
 
-	if (interrupted || (nodes % 10000 == 0 && std::chrono::duration_cast<std::chrono::milliseconds>(now - begin).count() > thinkingTime)) {
+	// We check time every 8192 nodes
+	if (interrupted || (nodes % 8192 == 0 && std::chrono::duration_cast<std::chrono::milliseconds>(now - begin).count() > thinkingTime)) {
 		interrupted = true;
 		return std::make_pair(-INFINITY, std::list<Move>());
 	}
@@ -189,7 +193,7 @@ std::pair<double, std::list<Move>> AI::_pvs(Game* game, u8 depth, u8 ply, double
 	std::list<Move> movesSequence;
 
 
-	bool isEmpty(false);
+	bool isEmpty(true);
 	Entry entry;
 
 	bool doSearch(true);
@@ -206,22 +210,24 @@ std::pair<double, std::list<Move>> AI::_pvs(Game* game, u8 depth, u8 ply, double
 		// If the move is not in the possible moves list : collision
 		if (it != possibleMoves.end()) {
 			if (entry.depth >= depth) {
+				double entryScore(playerSign(player) * entry.score);
+
 				switch (entry.type) {
 				case AllNode:
-					if (beta > entry.score)
-						beta = entry.score;
+					if (beta > entryScore)
+						beta = entryScore;
 					break;
 
 				case CutNode:
-					if (alpha < entry.score)
-						alpha = entry.score;
+					if (alpha < entryScore)
+						alpha = entryScore;
 					break;
 				}
 
 				if (entry.type == PVNode || alpha >= beta) {
 					bestMove = entry.bestMove;
 					movesSequence = entry.movesSequence;
-					score = playerSign(player) * entry.score;
+					score = entryScore;
 					doSearch = false;
 				}
 			}
@@ -284,7 +290,7 @@ std::pair<double, std::list<Move>> AI::_pvs(Game* game, u8 depth, u8 ply, double
 				pair = _pvs(game, depth - 1, ply + 1, -alpha - 1, -alpha, otherPlayer(player), nodes, interrupted, begin, thinkingTime);
 				value = -pair.first;
 
-				if (alpha < value < beta) {
+				if (alpha < value && value < beta) {
 					pair = _pvs(game, depth - 1, ply + 1, -beta, -alpha, otherPlayer(player), nodes, interrupted, begin, thinkingTime);
 					value = -pair.first;
 				}

@@ -11,7 +11,7 @@ void Application::go(Player humanPlayer, u64 thinkingTime)
 	u8 movingSquare(-1), hoveredSquare(-1), promoCol(0), promoDelta(0);
 	int e(0);
 
-	AI ai(1 << 24);
+	AI ai(1 << 22);
 
 	bool isMoving(false), promoSelection(false), hasMoved(false);
 	std::string lastMoveStr;

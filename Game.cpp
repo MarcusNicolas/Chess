@@ -13,6 +13,7 @@ Game::Game() :
 	mActivePlayer(White),
 	mHalfmoveClock(0),
 	mEnPassantSquare(-1),
+	mLastMovedPieceSquare(-1),
 	mCastlingRights(WhiteKingCastle | WhiteQueenCastle | BlackKingCastle | BlackQueenCastle),
 	mStatus(Ongoing)
 {
@@ -122,6 +123,11 @@ u8 Game::enPassantSquare() const
 	return mEnPassantSquare;
 }
 
+u8 Game::lastMovedSquare() const
+{
+	return mLastMovedPieceSquare;
+}
+
 u64 Game::hash() const
 {
 	return mHashs.top();
@@ -190,19 +196,19 @@ void Game::unmakeMove()
 
 u64 Game::_makeMove(const Move& move)
 {
-
 	u64 hash(Hashing::instance().hashTurn());
 
 	hash ^= Hashing::instance().hashCastlingRights(mCastlingRights);
 
-	if (mEnPassantSquare != -1)
+	if (mEnPassantSquare != u8(-1))
 		hash ^= Hashing::instance().hashEnPassantFile(mEnPassantSquare % 8);
 
 
-	Undo undo({ move, nullptr, Pawn, mHalfmoveClock, mEnPassantSquare , mCastlingRights });
+	Undo undo({ move, nullptr, Pawn, mHalfmoveClock, mEnPassantSquare, mLastMovedPieceSquare, mCastlingRights });
 
 	++mHalfmoveClock;
 	mEnPassantSquare = -1;
+	mLastMovedPieceSquare = move.to();
 
 	// If castle
 	if (move.isCastle()) {
@@ -275,7 +281,7 @@ u64 Game::_makeMove(const Move& move)
 
 	hash ^= Hashing::instance().hashCastlingRights(mCastlingRights);
 
-	if (mEnPassantSquare != -1)
+	if (mEnPassantSquare != u8(-1))
 		hash ^= Hashing::instance().hashEnPassantFile(mEnPassantSquare % 8);
 
 
@@ -294,6 +300,7 @@ void Game::_unmakeMove()
 	mActivePlayer = otherPlayer(mActivePlayer);
 	mHalfmoveClock = undo.halfmoveClock;
 	mEnPassantSquare = undo.enPassantSquare;
+	mLastMovedPieceSquare = undo.lastMovedPieceSquare;
 	mCastlingRights = undo.castlingRights;
 
 	// Unmake the move
@@ -391,10 +398,6 @@ void Game::_generateMoves()
 
 	if (_canCastleQueenSide(mActivePlayer))
 		mMoves.top().push_back(Move(sCastleDelta[mActivePlayer] + 4, sCastleDelta[mActivePlayer] + 2, QueenCastle));
-
-
-	// Sort the generated moves (alpha beta)
-	mMoves.top().sort();
 }
 
 void Game::_addPawnMoves(Player player)

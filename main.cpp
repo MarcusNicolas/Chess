@@ -25,8 +25,7 @@ int main()
 			std::cin >> s;
 
 		app.go(player, std::stof(s) * 1000);
-	}
-	catch (const std::exception& e) {
+	} catch (const std::exception& e) {
 		std::cout << "\n\n/!\\ Exception : " << e.what() << "\n\n\n";
 		system("PAUSE");
 	}

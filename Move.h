@@ -24,9 +24,6 @@ private:
 	u32 mMove;
 };
 
-bool operator<(const Move&, const Move&);
-bool operator>(const Move&, const Move&);
-bool operator<=(const Move&, const Move&);
-bool operator>=(const Move&, const Move&);
+bool operator!=(const Move&, const Move&);
 
 #endif // MOVE_H

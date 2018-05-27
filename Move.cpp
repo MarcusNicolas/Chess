@@ -49,22 +49,7 @@ bool operator==(const Move& a, const Move& b)
 	return a.mMove == b.mMove;
 }
 
-bool operator<(const Move& a, const Move& b)
+bool operator!=(const Move& a, const Move& b)
 {
-	return u8(b.isCapture()) < u8(a.isCapture());
-}
-
-bool operator>(const Move& a, const Move& b)
-{
-	return !(a <= b);
-}
-
-bool operator<=(const Move& a, const Move& b)
-{
-	return a < b || a == b;
-}
-
-bool operator>=(const Move& a, const Move& b)
-{
-	return a > b || a == b;
+	return !(a == b);
 }

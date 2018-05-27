@@ -14,6 +14,7 @@ struct Undo
 
 	u8 halfmoveClock;
 	u8 enPassantSquare;
+	u8 lastMovedPieceSquare;
 	u8 castlingRights;
 };
 
@@ -35,6 +36,7 @@ public:
 	Player activePlayer() const;
 	u8 castlingRights() const;
 	u8 enPassantSquare() const;
+	u8 lastMovedSquare() const;
 
 	u64 hash() const;
 
@@ -100,6 +102,7 @@ private:
 	Player mActivePlayer;
 	u8 mHalfmoveClock;
 	u8 mEnPassantSquare;
+	u8 mLastMovedPieceSquare;
 	u8 mCastlingRights;
 
 	Status mStatus;

@@ -15,14 +15,18 @@ struct Entry
 	u8 depth;
 	double score; // Score for White
 
+
 	bool isAncient;
 };
 
 class TranspositionTable
 {
 public:
-	TranspositionTable(u32);
+	TranspositionTable(size_t);
 	~TranspositionTable();
+
+	size_t entries() const;
+	size_t size() const;
 
 	void tick();
 
@@ -31,6 +35,7 @@ public:
 
 private:
 	std::vector<Entry*> mTable;
+	u32 mEntries;
 };
 
 #endif // TRANSPOSITIONTABLE_H

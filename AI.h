@@ -7,7 +7,7 @@
 class AI
 {
 public:
-	AI();
+	AI(size_t);
 
 	Move bestMove(const Game&, u64);
 
@@ -19,6 +19,7 @@ private:
 	double _quiescenceSearch(Game*, double, double, Player, u64&);
 
 	TranspositionTable mTranspositionTable;
+	std::vector<std::array<Move, 2>> mKillerMoves;
 
 	std::array<std::array<double, 64>, 6> mPositionalScore;
 };

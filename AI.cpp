@@ -2,8 +2,8 @@
 
 std::array<double, 6> AI::sPiecesValues = { 1, 3.2, 3.3, 5, 9, 1000 };
 
-AI::AI() :
-	mTranspositionTable((u64(1) << 24) + 43) // To make it a prime number
+AI::AI(size_t transpositionTableSize) :
+	mTranspositionTable(transpositionTableSize)
 {
 	mPositionalScore[Pawn] =
 		{ 0., 0., 0., 0., 0., 0., 0., 0.,
@@ -81,8 +81,11 @@ Move AI::bestMove(const Game& game, u64 thinkingTime)
 	Move move;
 	std::list<Move> movesSequence;
 
+	mKillerMoves.clear();
+
 
 	while (!interrupted) {
+		mKillerMoves.push_back({ Move(), Move() });
 		movesSequence = _negamax(&root, depth, -INFINITY, INFINITY, root.activePlayer(), nodes, interrupted, begin, thinkingTime).second;
 
 		if (!interrupted) {
@@ -91,8 +94,10 @@ Move AI::bestMove(const Game& game, u64 thinkingTime)
 		}
 	}
 
-	std::cout << int(double(nodes) / double(thinkingTime)) << " kN/s\n";
-	std::cout << int(depth - 1) << "\n\n";
+	std::cout << "Search speed: " << int(double(nodes) / double(thinkingTime)) << " kN/s\n";
+	std::cout << "Depth: " << int(depth - 1) << "\n";
+	std::cout << "TT filling rate : " << 100 * double(mTranspositionTable.entries()) / double(mTranspositionTable.size()) << "%\n\n";
+
 
 	mTranspositionTable.tick();
 
@@ -128,8 +133,7 @@ double AI::_evaluate(const Game& game, Player player) const
 		score += posScore * (2 * (i == player) - 1);
 	}
 
-	switch (game.status())
-	{
+	switch (game.status()) {
 	case WhiteWin:
 		if (player == White)
 			score = 1000.;
@@ -147,7 +151,7 @@ double AI::_evaluate(const Game& game, Player player) const
 		break;
 
 	case Draw:
-		score *= -1;
+		score *= -10;
 	}
 
 	return score;
@@ -171,24 +175,23 @@ std::pair<double, std::list<Move>> AI::_negamax(Game* game, u8 depth, double alp
 	Move bestMove;
 	double score(-INFINITY);
 
-	std::list<Move> moveSequence;
+	std::list<Move> movesSequence;
 
 
-	bool entryIsEmpty(false);
+	bool isEmpty(false);
 	Entry entry;
 
 	bool doSearch(true);
 
 	std::list<Move> possibleMoves(game->possibleMoves());
+	std::list<std::pair<Move, double>> sortedMoves;
 
-
-	entry = mTranspositionTable.getEnty(game->hash(), entryIsEmpty);
+	entry = mTranspositionTable.getEnty(game->hash(), isEmpty);
 
 	// We matched with an entry in our transposition table
-	if (!entryIsEmpty && game->hash() == entry.hash) {
+	if (!isEmpty && game->hash() == entry.hash) {
 		if (entry.depth >= depth) {
-			switch (entry.type)
-			{
+			switch (entry.type) {
 			case AllNode:
 				if (beta > entry.score)
 					beta = entry.score;
@@ -207,43 +210,89 @@ std::pair<double, std::list<Move>> AI::_negamax(Game* game, u8 depth, double alp
 			}
 		}
 
-		if (doSearch)
-			std::swap_ranges(possibleMoves.begin(), ++possibleMoves.begin(), std::find(possibleMoves.begin(), possibleMoves.end(), entry.bestMove));
+		if (doSearch) {
+			std::list<Move>::iterator it = std::find(possibleMoves.begin(), possibleMoves.end(), entry.bestMove);
+
+			sortedMoves.push_back(std::make_pair(*it, INFINITY));
+			possibleMoves.erase(it);
+		}
 	}
-	
+
+	// Move ordering
+	for (const Move& move : possibleMoves) {
+		double priority(0);
+
+		if (move.isCapture()) {
+			bool hasCapturedLastMovedPiece(false);
+			PieceType capturing, captured;
+
+			capturing = PieceType(game->pieceType(move.from()));
+
+			if (move.type() == EnPassant) {
+				captured = Pawn;
+				hasCapturedLastMovedPiece = true;
+			} else {
+				captured = PieceType(game->pieceType(move.to()));
+				hasCapturedLastMovedPiece = move.to() == game->lastMovedSquare();
+			}
+
+			priority += 100 * sPiecesValues[captured] - 10 * sPiecesValues[capturing];
+			priority += 1000 * hasCapturedLastMovedPiece;
+		} else if (move == mKillerMoves[depth][0])
+			priority += 50;
+		else if (move == mKillerMoves[depth][1])
+			priority += 45;
+
+		sortedMoves.push_back(std::make_pair(move, priority));
+	}
+
+	sortedMoves.sort([](const std::pair<Move, double>& p1, const std::pair<Move, double>& p2) { return p1.second > p2.second; });
+
+
+	// Search
 	if (doSearch) {
 		double v(0);
 		NodeType type(AllNode);
 
-		for (const Move& move : possibleMoves) {
-			game->makeMove(move);
+		bool hashMove(!isEmpty);
+
+		for (const std::pair<Move, double>& move : sortedMoves) {
+			game->makeMove(move.first);
 			std::pair<double, std::list<Move>> p = _negamax(game, depth - 1, -beta, -alpha, otherPlayer(player), nodes, interrupted, begin, thinkingTime);
 			v = -p.first;
 			game->unmakeMove();
 
 			if (v > score) {
 				score = v;
-				bestMove = move;
-				moveSequence = p.second;
+				bestMove = move.first;
+				movesSequence = p.second;
 
 				if (score > alpha) {
 					alpha = score;
 					type = PVNode;
 
 					if (alpha >= beta) {
+						// We store the move that produced the cutoff as a killer move
+						if (!move.first.isCapture() && !hashMove && move.first != mKillerMoves[depth][0]) {
+							mKillerMoves[depth][1] = mKillerMoves[depth][0];
+							mKillerMoves[depth][0] = move.first;
+						}
+
 						type = CutNode;
 						break;
 					}
 				}
 			}
+
+			hashMove = false;
 		}
 
 
 		mTranspositionTable.addEntry(Entry(game->hash(), type, bestMove, depth, playerSign(player) * score, false));
 	}
 
-	moveSequence.push_front(bestMove);
-	return std::make_pair(score, moveSequence); // BUG
+	movesSequence.push_front(bestMove);
+	return std::make_pair(score, movesSequence);
 }
 
 double AI::_quiescenceSearch(Game* game, double alpha, double beta, Player player, u64& nodes)

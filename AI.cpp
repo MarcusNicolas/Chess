@@ -86,7 +86,7 @@ Move AI::bestMove(const Game& game, u64 thinkingTime)
 
 	while (!interrupted) {
 		mKillerMoves.push_back({ Move(), Move() });
-		movesSequence = _negamax(&root, depth, -INFINITY, INFINITY, root.activePlayer(), nodes, interrupted, begin, thinkingTime).second;
+		movesSequence = _pvs(&root, depth, -INFINITY, INFINITY, root.activePlayer(), nodes, interrupted, begin, thinkingTime).second;
 
 		if (!interrupted) {
 			move = movesSequence.front();
@@ -157,7 +157,8 @@ double AI::_evaluate(const Game& game, Player player) const
 	return score;
 }
 
-std::pair<double, std::list<Move>> AI::_negamax(Game* game, u8 depth, double alpha, double beta, Player player, u64& nodes, bool& interrupted, const std::chrono::steady_clock::time_point& begin, u64 thinkingTime)
+// Principal variation search
+std::pair<double, std::list<Move>> AI::_pvs(Game* game, u8 depth, double alpha, double beta, Player player, u64& nodes, bool& interrupted, const std::chrono::steady_clock::time_point& begin, u64 thinkingTime)
 {
 	std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
 
@@ -251,29 +252,46 @@ std::pair<double, std::list<Move>> AI::_negamax(Game* game, u8 depth, double alp
 
 	// Search
 	if (doSearch) {
-		double v(0);
+		double value(0);
 		NodeType type(AllNode);
 
-		bool hashMove(!isEmpty);
+		std::pair<double, std::list<Move>> pair;
+
+		bool isFirstMove(true);
+
 
 		for (const std::pair<Move, double>& move : sortedMoves) {
 			game->makeMove(move.first);
-			std::pair<double, std::list<Move>> p = _negamax(game, depth - 1, -beta, -alpha, otherPlayer(player), nodes, interrupted, begin, thinkingTime);
-			v = -p.first;
+
+			if (isFirstMove) {
+				pair = _pvs(game, depth - 1, -beta, -alpha, otherPlayer(player), nodes, interrupted, begin, thinkingTime);
+				value = -pair.first;
+			} else {
+				pair = _pvs(game, depth - 1, -alpha - 1, -alpha, otherPlayer(player), nodes, interrupted, begin, thinkingTime);
+				value = -pair.first;
+
+				if (alpha < value < beta) {
+					pair = _pvs(game, depth - 1, -beta, -alpha, otherPlayer(player), nodes, interrupted, begin, thinkingTime);
+					value = -pair.first;
+				}
+			}
+
 			game->unmakeMove();
 
-			if (v > score) {
-				score = v;
+
+
+			if (value > score) {
+				score = value;
 				bestMove = move.first;
-				movesSequence = p.second;
+				movesSequence = pair.second;
 
 				if (score > alpha) {
 					alpha = score;
 					type = PVNode;
 
 					if (alpha >= beta) {
-						// We store the move that produced the cutoff as a killer move
-						if (!move.first.isCapture() && !hashMove && move.first != mKillerMoves[depth][0]) {
+						// We store the move that produced the cutoff as a killer move, if it is neither a capture nor a hash move
+						if (!move.first.isCapture() && !(!isEmpty && isFirstMove) && move.first != mKillerMoves[depth][0]) {
 							mKillerMoves[depth][1] = mKillerMoves[depth][0];
 							mKillerMoves[depth][0] = move.first;
 						}
@@ -284,7 +302,7 @@ std::pair<double, std::list<Move>> AI::_negamax(Game* game, u8 depth, double alp
 				}
 			}
 
-			hashMove = false;
+			isFirstMove = false;
 		}
 
 
